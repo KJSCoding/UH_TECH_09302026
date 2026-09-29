@@ -166,6 +166,8 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
   .issue{grid-template-columns:minmax(0,1fr)}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:900px){.framed .rail{padding-top:64px}}
+.framed .topbar .who{padding-right:0}
 </style>
 
 <div class="shell">
@@ -868,6 +870,7 @@ $('#rerun').addEventListener('click',()=>{
 $('#tryBtn').addEventListener('click',runTry);
 
 /* ===================== Boot ===================== */
+try{ if(window.self!==window.top) document.documentElement.classList.add('framed'); }catch(e){ document.documentElement.classList.add('framed'); }
 addLog('SimplyShop','Sweep 1: asked '+QUESTIONS.length+' questions on '+ASSISTANTS.length+' assistants');
 runSweep(); state.runsHistory=[{incl:state.metrics.incl,acc:state.metrics.acc}];
 addLog('SimplyShop',`Sweep 1 result: inclusion ${pct(state.metrics.incl)}, accuracy ${pct(state.metrics.acc)}, ${state.metrics.errors} wrong facts live`);
