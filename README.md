@@ -16,7 +16,7 @@ Shoppers now ask AI assistants "what's the best laptop under $500?" and buy from
 
 ## How to use the demo
 
-The demo loads a fictional laptop brand, Nimbus Computing, with fictional competitors. Assistant answers are simulated sample runs so judges can use it without API keys. The claim checker, source tracing, severity scoring, routing rules and metrics all run live in the browser.
+The demo loads a real sponsor brand, Dell, with sample product data and placeholder competitors. Assistant answers are simulated sample runs so judges can use it without API keys. The claim checker, source tracing, severity scoring, routing rules and metrics all run live in the browser.
 
 Suggested path (about 3 minutes):
 
@@ -26,7 +26,7 @@ Suggested path (about 3 minutes):
 4. Sources: which pages are causing the most wrong facts.
 5. Approvals: approve or reject fixes and content gaps as the accountable owner.
 6. Click "Re-run all questions" at the top. Approved fixes take effect and the metrics and trend chart update.
-7. Try it: paste any AI answer about a Nimbus product and the checker grades it claim by claim.
+7. Try it: paste any AI answer about a Dell product and the checker grades it claim by claim.
 
 ## Tech
 

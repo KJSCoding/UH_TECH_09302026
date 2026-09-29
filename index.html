@@ -177,14 +177,14 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
     <div class="topbar">
       <div class="who">
         <span class="eyebrow">Monitoring brand</span>
-        <h1>Nimbus Computing <span style="color:var(--muted);font-weight:500">· laptops</span></h1>
+        <h1>Dell Technologies <span style="color:var(--muted);font-weight:500">· laptops</span></h1>
       </div>
       <div class="sweep">
         <span class="mono" style="color:var(--muted);font-size:.82rem" id="sweepLabel">Sweep 1</span>
         <button class="btn primary" id="rerun">Re-run all questions</button>
       </div>
     </div>
-    <div class="notice">Demo mode: Nimbus Computing and its competitors are fictional, and the assistant answers are simulated sample runs. The claim checker, source tracing, severity scoring and approval rules below run live in your browser. Approve fixes, then re-run the questions to see the numbers move.</div>
+    <div class="notice">Demo mode: the Dell prices, specs and stock shown here are sample values, not live Dell data. Competitor names are placeholders and the assistant answers are simulated sample runs. The claim checker, source tracing, severity scoring and approval rules run live in your browser. Approve fixes, then re-run the questions to see the numbers move.</div>
 
     <!-- OVERVIEW -->
     <section class="view" id="v-overview">
@@ -216,7 +216,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
     <section class="view" id="v-visibility" hidden>
       <div class="panel">
         <header>
-          <div><h2>Where Nimbus shows up</h2><p>Each cell is one assistant's answer to one shopper question. The number is Nimbus's position in the answer. Red means the answer mentions Nimbus but gets a fact wrong. Click a cell to read the answer.</p></div>
+          <div><h2>Where Dell shows up</h2><p>Each cell is one assistant's answer to one shopper question. The number is Dell's position in the answer. Red means the answer mentions Dell but gets a fact wrong. Click a cell to read the answer.</p></div>
         </header>
         <div class="tablewrap"><table id="grid"></table></div>
       </div>
@@ -226,7 +226,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
     <!-- TRUTH CHECK -->
     <section class="view" id="v-truth" hidden>
       <div class="panel">
-        <header><div><h2>Wrong facts found in AI answers</h2><p>Every answer is split into claims and checked against the Nimbus product record: price, specs, stock and policies. Each error is traced to the page the assistant most likely learned it from, scored for customer harm, and routed to an action.</p></div></header>
+        <header><div><h2>Wrong facts found in AI answers</h2><p>Every answer is split into claims and checked against the Dell product record: price, specs, stock and policies. Each error is traced to the page the assistant most likely learned it from, scored for customer harm, and routed to an action.</p></div></header>
         <div class="issues" id="issueList"></div>
       </div>
       <div class="panel" style="margin-top:20px">
@@ -250,7 +250,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
         <div class="queue" id="queue"></div>
       </div>
       <div class="panel" style="margin-top:20px">
-        <header><div><h3>Content gaps</h3><p>Shopping questions where Nimbus is missing. ShelfSight drafts the content; a person approves it before it goes live.</p></div></header>
+        <header><div><h3>Content gaps</h3><p>Shopping questions where Dell is missing. ShelfSight drafts the content; a person approves it before it goes live.</p></div></header>
         <div class="queue" id="gaps"></div>
       </div>
       <div class="panel" style="margin-top:20px">
@@ -262,9 +262,9 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
     <!-- TRY IT -->
     <section class="view" id="v-tryit" hidden>
       <div class="panel">
-        <header><div><h2>Check any AI answer</h2><p>Paste an answer from any assistant. The checker pulls out every claim about a Nimbus product or policy and compares it to the product record.</p></div></header>
+        <header><div><h2>Check any AI answer</h2><p>Paste an answer from any assistant. The checker pulls out every claim about a Dell product or policy and compares it to the product record.</p></div></header>
         <label class="eyebrow" for="tryText">AI answer</label>
-        <textarea id="tryText">For a laptop under $500, I'd go with the Nimbus Air 14. It costs $429, comes with 8GB RAM and a 512GB SSD, and gets about 10 hours of battery. It also has a touchscreen. Nimbus gives you a 30 day return window and a 1 year warranty. If you want more power, the Nimbus Pro 16 is $899 and in stock now.</textarea>
+        <textarea id="tryText">For a laptop under $500, I'd go with the Dell 14. It costs $429, comes with 8GB RAM and a 512GB SSD, and gets about 10 hours of battery. It also has a touchscreen. Dell gives you a 30 day return window and a 1 year warranty. If you want more power, the Dell Pro 16 is $899 and in stock now.</textarea>
         <div><button class="btn primary" id="tryBtn">Check claims</button></div>
         <div id="tryOut"></div>
       </div>
@@ -276,9 +276,9 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
         <header><div><h2>Who can do what</h2><p>The system acts on its own only when the fix copies an already approved fact. Everything else waits for a named owner.</p></div></header>
         <div class="tier">
           <div><span class="chip auto">Automatic</span>
-            <ul><li>Log every answer and every claim</li><li>Alert the owner of the fact that was wrong</li><li>Resync Nimbus's own product feed and structured data from the product record</li><li>Add the question to a daily watchlist until it checks out</li></ul></div>
+            <ul><li>Log every answer and every claim</li><li>Alert the owner of the fact that was wrong</li><li>Resync Dell's own product feed and structured data from the product record</li><li>Add the question to a daily watchlist until it checks out</li></ul></div>
           <div><span class="chip med">Person approves first</span>
-            <ul><li>New or changed customer facing copy</li><li>Correction requests to retailers or review sites</li><li>Anything comparing Nimbus to a competitor</li><li>Policy, warranty, safety or legal wording (Legal signs off)</li></ul></div>
+            <ul><li>New or changed customer facing copy</li><li>Correction requests to retailers or review sites</li><li>Anything comparing Dell to a competitor</li><li>Policy, warranty, safety or legal wording (Legal signs off)</li></ul></div>
           <div><span class="chip high">Never allowed</span>
             <ul><li>Fake or incentivized reviews</li><li>Hidden text or keyword stuffing aimed at AI crawlers</li><li>Claims about competitors that are not sourced</li><li>Changing the product record to match what an AI said</li></ul></div>
         </div>
@@ -312,10 +312,10 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
 <script>
 /* ===================== Product record (source of truth) ===================== */
 const PRODUCTS = [
-  {id:'air14',  name:'Nimbus Air 14',        alias:['Nimbus Air 14','Air 14'],   price:449, ram:8,  storage:256,  battery:10, touch:false, stock:'in stock'},
-  {id:'flex15', name:'Nimbus Flex 15',       alias:['Nimbus Flex 15','Flex 15'], price:499, ram:16, storage:512,  battery:8,  touch:true,  stock:'in stock'},
-  {id:'pro16',  name:'Nimbus Pro 16',        alias:['Nimbus Pro 16'],   price:899, ram:16, storage:1024, battery:12, touch:false, stock:'backorder'},
-  {id:'cb11',   name:'Nimbus Chromebook 11', alias:['Nimbus Chromebook 11','Chromebook 11'], price:249, ram:4, storage:64, battery:11, touch:false, stock:'discontinued'}
+  {id:'air14',  name:'Dell 14',        alias:['Dell 14','Dell 14'],   price:449, ram:8,  storage:256,  battery:10, touch:false, stock:'in stock'},
+  {id:'flex15', name:'Dell 16 2-in-1',       alias:['Dell 16 2-in-1','Dell 16 2-in-1'], price:499, ram:16, storage:512,  battery:8,  touch:true,  stock:'in stock'},
+  {id:'pro16',  name:'Dell Pro 16',        alias:['Dell Pro 16'],   price:899, ram:16, storage:1024, battery:12, touch:false, stock:'backorder'},
+  {id:'cb11',   name:'Dell Chromebook 3110', alias:['Dell Chromebook 3110','Dell Chromebook 3110'], price:249, ram:4, storage:64, battery:11, touch:false, stock:'discontinued'}
 ];
 const POLICY = {returns:30, warranty:1};
 const COMPETITORS = ['Kestrel Lite 14','Orion Book 15','Vertex Go 13','Kestrel Pro 16','Orion Slim 14'];
@@ -326,25 +326,25 @@ const ASSISTANTS = [
 const QUESTIONS = [
   {id:'q1',text:'What are the best laptops under $500?',kind:'shopping'},
   {id:'q2',text:'Best laptop for college students?',kind:'shopping'},
-  {id:'q3',text:'Nimbus Air 14 vs Kestrel Lite 14',kind:'brand'},
-  {id:'q4',text:'Does the Nimbus Flex 15 have a touchscreen?',kind:'brand'},
+  {id:'q3',text:'Dell 14 vs Kestrel Lite 14',kind:'brand'},
+  {id:'q4',text:'Does the Dell 16 2-in-1 have a touchscreen?',kind:'brand'},
   {id:'q5',text:'Best budget laptop with long battery life?',kind:'shopping'},
-  {id:'q6',text:'What is the Nimbus return policy?',kind:'brand'},
+  {id:'q6',text:'What is the Dell return policy?',kind:'brand'},
   {id:'q7',text:'Best laptop for a small business under $1000?',kind:'shopping'},
   {id:'q8',text:'Lightweight laptop under $500?',kind:'shopping'}
 ];
 
 /* Pages assistants cite. "snap" is what that page says right now. */
 const SOURCES = {
-  own:     {name:'nimbus.com product pages',owner:'Nimbus',updated:'Current',snap:'Nimbus Air 14 $449 8GB RAM 256GB SSD 10 hours. Flex 15 touchscreen $499. 30 day return, 1 year warranty.'},
-  feed:    {name:'Nimbus product feed (retail syndication)',owner:'Nimbus',updated:'Out of sync 9 days',snap:'Nimbus Pro 16 in stock'},
-  oldpdf:  {name:'nimbus.com archived Flex 15 spec sheet (2024)',owner:'Nimbus',updated:'2024',snap:'Flex 15 non-touch display'},
-  rh_air:  {name:'RetailHub listing: Nimbus Air 14',owner:'Third party',updated:'Cached Feb 2026',snap:'Nimbus Air 14 $399 sold out'},
-  rh_cb:   {name:'RetailHub listing: Nimbus Chromebook 11',owner:'Third party',updated:'Cached Jan 2026',snap:'Chromebook 11 in stock'},
-  techdaily:{name:'TechDaily review: Air 14 Touch (2025 model)',owner:'Third party',updated:'2025',snap:'Air 14 touchscreen'},
-  budgetbytes:{name:'BudgetBytes blog: longest battery laptops',owner:'Third party',updated:'2025',snap:'Air 14 12 hours'},
-  speccompare:{name:'SpecCompare listing: Air 14',owner:'Third party',updated:'2024',snap:'Air 14 4GB RAM'},
-  dealsforum:{name:'DealsForum thread: Nimbus returns',owner:'Third party',updated:'2023',snap:'14 day return'},
+  own:     {name:'dell.com product pages',owner:'Dell',updated:'Current',snap:'Dell 14 $449 8GB RAM 256GB SSD 10 hours. Dell 16 2-in-1 touchscreen $499. 30 day return, 1 year warranty.'},
+  feed:    {name:'Dell product feed (retail syndication)',owner:'Dell',updated:'Out of sync 9 days',snap:'Dell Pro 16 in stock'},
+  oldpdf:  {name:'dell.com archived Dell 16 2-in-1 spec sheet (2024)',owner:'Dell',updated:'2024',snap:'Dell 16 2-in-1 non-touch display'},
+  rh_air:  {name:'RetailHub listing: Dell 14',owner:'Third party',updated:'Cached Feb 2026',snap:'Dell 14 $399 sold out'},
+  rh_cb:   {name:'RetailHub listing: Dell Chromebook 3110',owner:'Third party',updated:'Cached Jan 2026',snap:'Dell Chromebook 3110 in stock'},
+  techdaily:{name:'TechDaily review: Dell 14 Touch (2025 model)',owner:'Third party',updated:'2025',snap:'Dell 14 touchscreen'},
+  budgetbytes:{name:'BudgetBytes blog: longest battery laptops',owner:'Third party',updated:'2025',snap:'Dell 14 12 hours'},
+  speccompare:{name:'SpecCompare listing: Dell 14',owner:'Third party',updated:'2024',snap:'Dell 14 4GB RAM'},
+  dealsforum:{name:'DealsForum thread: Dell returns',owner:'Third party',updated:'2023',snap:'14 day return'},
   partner:   {name:'PartnerStore extended warranty promo',owner:'Third party',updated:'2025',snap:'2 year warranty'},
   reddit:    {name:'r/laptops budget thread',owner:'Third party',updated:'Current',snap:''},
   kestrel:   {name:'kestrel.com comparison page',owner:'Competitor',updated:'Current',snap:''}
@@ -353,55 +353,55 @@ const SOURCES = {
 /* Simulated answers. "fixed" is what the assistant says after the source is corrected. */
 const A = (q,a,text,src,fixed)=>({id:q+'_'+a,q,a,text,src,fixed});
 const ANSWERS = [
-  A('q1','chatgpt','1. Kestrel Lite 14 at $479. 2. Nimbus Air 14 for $399, with 8GB RAM and a 10 hour battery. 3. Orion Book 15 at $459.',['rh_air','reddit'],
-    '1. Kestrel Lite 14 at $479. 2. Nimbus Air 14 for $449, with 8GB RAM and a 10 hour battery. 3. Orion Book 15 at $459.'),
-  A('q1','gemini','Top pick: Nimbus Flex 15 at $499 with 16GB RAM and a touchscreen. Also consider the Kestrel Lite 14 at $479 and the Orion Book 15.',['own','reddit']),
+  A('q1','chatgpt','1. Kestrel Lite 14 at $479. 2. Dell 14 for $399, with 8GB RAM and a 10 hour battery. 3. Orion Book 15 at $459.',['rh_air','reddit'],
+    '1. Kestrel Lite 14 at $479. 2. Dell 14 for $449, with 8GB RAM and a 10 hour battery. 3. Orion Book 15 at $459.'),
+  A('q1','gemini','Top pick: Dell 16 2-in-1 at $499 with 16GB RAM and a touchscreen. Also consider the Kestrel Lite 14 at $479 and the Orion Book 15.',['own','reddit']),
   A('q1','perplexity','Good options are the Orion Book 15 ($459), Kestrel Lite 14 ($479) and Vertex Go 13 ($429).',['kestrel','reddit']),
   A('q1','claude','Look at the Kestrel Lite 14, the Orion Book 15 and the Vertex Go 13. All three stay under $500.',['kestrel','reddit']),
-  A('q1','copilot','1. Kestrel Lite 14. 2. Nimbus Air 14 ($449) includes a touchscreen and 10 hours of battery. 3. Vertex Go 13.',['techdaily','own'],
-    '1. Kestrel Lite 14. 2. Nimbus Air 14 ($449) with 10 hours of battery and a lightweight build. 3. Vertex Go 13.'),
-  A('q2','chatgpt','The Nimbus Flex 15 at $499 is a strong pick, with 16GB RAM and a 512GB SSD, and it is in stock at most retailers. The Orion Book 15 is a cheaper option.',['own','reddit']),
+  A('q1','copilot','1. Kestrel Lite 14. 2. Dell 14 ($449) includes a touchscreen and 10 hours of battery. 3. Vertex Go 13.',['techdaily','own'],
+    '1. Kestrel Lite 14. 2. Dell 14 ($449) with 10 hours of battery and a lightweight build. 3. Vertex Go 13.'),
+  A('q2','chatgpt','The Dell 16 2-in-1 at $499 is a strong pick, with 16GB RAM and a 512GB SSD, and it is in stock at most retailers. The Orion Book 15 is a cheaper option.',['own','reddit']),
   A('q2','gemini','Students like the Kestrel Lite 14 and the Orion Slim 14 for their weight and price.',['kestrel','reddit'],
-    'Students like the Kestrel Lite 14, the Nimbus Flex 15 ($499) and the Orion Slim 14 for their weight and price.'),
-  A('q2','perplexity','The Kestrel Lite 14 is popular. The Nimbus Air 14 at $449 offers 12 hours of battery life.',['budgetbytes','reddit'],
-    'The Kestrel Lite 14 is popular. The Nimbus Air 14 at $449 offers 10 hours of battery life.'),
-  A('q2','claude','Consider the Orion Slim 14, the Kestrel Lite 14, or the Nimbus Air 14 ($449), which is light with a 10 hour battery.',['own','reddit']),
+    'Students like the Kestrel Lite 14, the Dell 16 2-in-1 ($499) and the Orion Slim 14 for their weight and price.'),
+  A('q2','perplexity','The Kestrel Lite 14 is popular. The Dell 14 at $449 offers 12 hours of battery life.',['budgetbytes','reddit'],
+    'The Kestrel Lite 14 is popular. The Dell 14 at $449 offers 10 hours of battery life.'),
+  A('q2','claude','Consider the Orion Slim 14, the Kestrel Lite 14, or the Dell 14 ($449), which is light with a 10 hour battery.',['own','reddit']),
   A('q2','copilot','The Kestrel Lite 14 and Orion Book 15 are the most common student picks.',['kestrel']),
-  A('q3','chatgpt','The Nimbus Air 14 costs $449 and has 8GB RAM; the Kestrel Lite 14 costs $479.',['own','kestrel']),
-  A('q3','gemini','The Nimbus Air 14 is $449 with 8GB RAM, a 256GB SSD and a 10 hour battery. The Kestrel Lite 14 is slightly heavier.',['own','kestrel']),
-  A('q3','perplexity','The Nimbus Air 14 is sold out at most retailers right now, so the Kestrel Lite 14 is easier to get.',['rh_air','kestrel'],
-    'The Nimbus Air 14 is in stock at $449, while the Kestrel Lite 14 costs $479.'),
-  A('q3','claude','The Nimbus Air 14 ($449) is cheaper than the Kestrel Lite 14 ($479) and both have 8GB RAM.',['own','kestrel']),
-  A('q3','copilot','The Nimbus Air 14 at $449 has 4GB RAM, while the Kestrel Lite 14 has 8GB.',['speccompare','kestrel'],
-    'The Nimbus Air 14 at $449 has 8GB RAM, the same as the Kestrel Lite 14.'),
-  A('q4','chatgpt','Yes, the Nimbus Flex 15 has a touchscreen.',['own']),
-  A('q4','gemini','The Nimbus Flex 15 does not have a touchscreen.',['oldpdf'],'Yes, the Nimbus Flex 15 has a 15 inch touchscreen.'),
-  A('q4','perplexity','Yes. The Nimbus Flex 15 comes with a touchscreen and costs $499.',['own']),
-  A('q4','claude','Yes, the Nimbus Flex 15 includes a touchscreen.',['own']),
-  A('q4','copilot','The Nimbus Flex 15 has a touchscreen display.',['own']),
-  A('q5','chatgpt','The Nimbus Pro 16 lasts 12 hours at $899 and is in stock. The Vertex Go 13 is a cheaper choice.',['feed','reddit'],
-    'The Nimbus Pro 16 lasts 12 hours at $899 but is on backorder. The Vertex Go 13 is a cheaper choice.'),
+  A('q3','chatgpt','The Dell 14 costs $449 and has 8GB RAM; the Kestrel Lite 14 costs $479.',['own','kestrel']),
+  A('q3','gemini','The Dell 14 is $449 with 8GB RAM, a 256GB SSD and a 10 hour battery. The Kestrel Lite 14 is slightly heavier.',['own','kestrel']),
+  A('q3','perplexity','The Dell 14 is sold out at most retailers right now, so the Kestrel Lite 14 is easier to get.',['rh_air','kestrel'],
+    'The Dell 14 is in stock at $449, while the Kestrel Lite 14 costs $479.'),
+  A('q3','claude','The Dell 14 ($449) is cheaper than the Kestrel Lite 14 ($479) and both have 8GB RAM.',['own','kestrel']),
+  A('q3','copilot','The Dell 14 at $449 has 4GB RAM, while the Kestrel Lite 14 has 8GB.',['speccompare','kestrel'],
+    'The Dell 14 at $449 has 8GB RAM, the same as the Kestrel Lite 14.'),
+  A('q4','chatgpt','Yes, the Dell 16 2-in-1 has a touchscreen.',['own']),
+  A('q4','gemini','The Dell 16 2-in-1 does not have a touchscreen.',['oldpdf'],'Yes, the Dell 16 2-in-1 has a 16 inch touchscreen.'),
+  A('q4','perplexity','Yes. The Dell 16 2-in-1 comes with a touchscreen and costs $499.',['own']),
+  A('q4','claude','Yes, the Dell 16 2-in-1 includes a touchscreen.',['own']),
+  A('q4','copilot','The Dell 16 2-in-1 has a touchscreen display.',['own']),
+  A('q5','chatgpt','The Dell Pro 16 lasts 12 hours at $899 and is in stock. The Vertex Go 13 is a cheaper choice.',['feed','reddit'],
+    'The Dell Pro 16 lasts 12 hours at $899 but is on backorder. The Vertex Go 13 is a cheaper choice.'),
   A('q5','gemini','The Vertex Go 13 and Kestrel Lite 14 both last around 11 hours.',['reddit']),
-  A('q5','perplexity','The Vertex Go 13 leads, followed by the Nimbus Air 14 with a 10 hour battery at $449.',['own','reddit']),
+  A('q5','perplexity','The Vertex Go 13 leads, followed by the Dell 14 with a 10 hour battery at $449.',['own','reddit']),
   A('q5','claude','Try the Vertex Go 13 or the Orion Slim 14.',['reddit']),
   A('q5','copilot','The Kestrel Lite 14 and Vertex Go 13 are good budget picks for battery.',['reddit']),
-  A('q6','chatgpt','Nimbus offers a 14 day return policy and a 1 year warranty.',['dealsforum'],'Nimbus offers a 30 day return policy and a 1 year warranty.'),
-  A('q6','gemini','Nimbus has a 30 day return window and a 1 year warranty on laptops.',['own']),
-  A('q6','perplexity','You get a 30 day return period and a 1 year warranty from Nimbus.',['own']),
-  A('q6','claude','Nimbus allows 30 day returns and includes a 1 year warranty.',['own']),
-  A('q6','copilot','Nimbus has a 30 day return policy and a 2 year warranty.',['partner','own'],'Nimbus has a 30 day return policy and a 1 year warranty.'),
+  A('q6','chatgpt','Dell offers a 14 day return policy and a 1 year warranty.',['dealsforum'],'Dell offers a 30 day return policy and a 1 year warranty.'),
+  A('q6','gemini','Dell has a 30 day return window and a 1 year warranty on laptops.',['own']),
+  A('q6','perplexity','You get a 30 day return period and a 1 year warranty from Dell.',['own']),
+  A('q6','claude','Dell allows 30 day returns and includes a 1 year warranty.',['own']),
+  A('q6','copilot','Dell has a 30 day return policy and a 2 year warranty.',['partner','own'],'Dell has a 30 day return policy and a 1 year warranty.'),
   A('q7','chatgpt','The Kestrel Pro 16 and Orion Book 15 are solid business laptops.',['kestrel'],
-    'The Kestrel Pro 16, Nimbus Pro 16 ($899, 16GB RAM, 1TB SSD) and Orion Book 15 are solid business laptops.'),
-  A('q7','gemini','Consider the Kestrel Pro 16, the Orion Book 15, or the Nimbus Pro 16 ($899) with 16GB RAM and a 1TB SSD.',['own','kestrel']),
+    'The Kestrel Pro 16, Dell Pro 16 ($899, 16GB RAM, 1TB SSD) and Orion Book 15 are solid business laptops.'),
+  A('q7','gemini','Consider the Kestrel Pro 16, the Orion Book 15, or the Dell Pro 16 ($899) with 16GB RAM and a 1TB SSD.',['own','kestrel']),
   A('q7','perplexity','The Kestrel Pro 16 is the most recommended business laptop under $1000.',['kestrel']),
-  A('q7','claude','The Kestrel Pro 16 is a common pick. The Nimbus Pro 16 ($899) with 16GB RAM is also strong for office work.',['own','kestrel']),
+  A('q7','claude','The Kestrel Pro 16 is a common pick. The Dell Pro 16 ($899) with 16GB RAM is also strong for office work.',['own','kestrel']),
   A('q7','copilot','Kestrel Pro 16 and Orion Book 15 are the best under $1000.',['kestrel']),
-  A('q8','chatgpt','The Vertex Go 13 is lightest, then the Nimbus Air 14 at $449 with a 10 hour battery.',['own','reddit']),
-  A('q8','gemini','The Nimbus Air 14 ($449) is a great lightweight pick with 8GB RAM.',['own']),
+  A('q8','chatgpt','The Vertex Go 13 is lightest, then the Dell 14 at $449 with a 10 hour battery.',['own','reddit']),
+  A('q8','gemini','The Dell 14 ($449) is a great lightweight pick with 8GB RAM.',['own']),
   A('q8','perplexity','The Vertex Go 13 and Orion Slim 14 are both under 3 pounds.',['reddit'],
-    'The Vertex Go 13, Orion Slim 14 and Nimbus Air 14 ($449) are all light options.'),
-  A('q8','claude','The Nimbus Chromebook 11 at $249 is a great pick and is in stock. The Vertex Go 13 is another option.',['rh_cb','reddit'],
-    'The Vertex Go 13 is a great pick. The Nimbus Air 14 at $449 is another light option.'),
+    'The Vertex Go 13, Orion Slim 14 and Dell 14 ($449) are all light options.'),
+  A('q8','claude','The Dell Chromebook 3110 at $249 is a great pick and is in stock. The Vertex Go 13 is another option.',['rh_cb','reddit'],
+    'The Vertex Go 13 is a great pick. The Dell 14 at $449 is another light option.'),
   A('q8','copilot','The Vertex Go 13 is the lightest under $500.',['reddit'])
 ];
 
@@ -409,7 +409,7 @@ const ANSWERS = [
 const GAPS = [
   {id:'gap_q2',q:'q2',title:'Publish "Best laptops for college" guide with spec tables and structured data',owner:'Content Lead',flips:['q2_gemini']},
   {id:'gap_q7',q:'q7',title:'Publish small business laptop guide for the Pro 16 with a business FAQ',owner:'Content Lead',flips:['q7_chatgpt']},
-  {id:'gap_q8',q:'q8',title:'Add weight and travel specs to the Air 14 page and a lightweight laptop FAQ',owner:'Content Lead',flips:['q8_perplexity']}
+  {id:'gap_q8',q:'q8',title:'Add weight and travel specs to the Dell 14 page and a lightweight laptop FAQ',owner:'Content Lead',flips:['q8_perplexity']}
 ];
 
 /* ===================== Claim checker engine ===================== */
@@ -433,9 +433,9 @@ function extractClaims(text){
     const push=(attr,said,raw)=>{
       const truth = attr==='returns'||attr==='warranty' ? POLICY[attr] : (cur?cur[attr]:undefined);
       if(truth===undefined) return;
-      claims.push({product:(attr==='returns'||attr==='warranty')?'Nimbus policy':cur.name,attr,said,truth,raw,ok:said===truth});
+      claims.push({product:(attr==='returns'||attr==='warranty')?'Dell policy':cur.name,attr,said,truth,raw,ok:said===truth});
     };
-    // strip competitor clauses so their numbers are not credited to Nimbus
+    // strip competitor clauses so their numbers are not credited to Dell
     let own=f; if(p){for(const c of COMPETITORS){const i=own.indexOf(c); if(i>own.indexOf(p.alias.find(a=>own.includes(a)))) own=own.slice(0,i);}}
     if(cur){
       let m;
@@ -451,7 +451,7 @@ function extractClaims(text){
       else if((m=own.match(/in stock|available now/i))) push('stock','in stock',m[0]);
     }
     let m;
-    if(/nimbus/i.test(f)||cur){
+    if(/dell/i.test(f)||cur){
       if((m=f.match(/(\d+)[\s-]day return/i))) push('returns',+m[1],m[0]);
       if((m=f.match(/(\d+)[\s-]year warranty/i))) push('warranty',+m[1],m[0]);
     }
@@ -471,12 +471,12 @@ function traceOrigin(c,srcIds){
   return hit||null;
 }
 function rankOf(text){
-  const names=[{a:'Nimbus',brand:'Nimbus'},...PRODUCTS.flatMap(p=>p.alias.map(a=>({a,brand:'Nimbus'}))),...COMPETITORS.map(c=>({a:c,brand:c}))];
+  const names=[{a:'Dell',brand:'Dell'},...PRODUCTS.flatMap(p=>p.alias.map(a=>({a,brand:'Dell'}))),...COMPETITORS.map(c=>({a:c,brand:c}))];
   const hits=[];
   for(const n of names){const i=text.indexOf(n.a); if(i>=0) hits.push({i,brand:n.brand});}
   hits.sort((x,y)=>x.i-y.i);
   const order=[]; for(const h of hits){ if(!order.includes(h.brand)) order.push(h.brand); }
-  const r=order.indexOf('Nimbus'); return {rank:r<0?null:r+1, order};
+  const r=order.indexOf('Dell'); return {rank:r<0?null:r+1, order};
 }
 function severity(c,q,a){
   const base={price:3,stock:3,returns:4,warranty:4,touch:3,ram:2,storage:2,battery:2}[c.attr];
@@ -486,7 +486,7 @@ function severity(c,q,a){
   return {score:s, level:s>=5?'high':s>=4?'med':'low'};
 }
 function routeAction(c,originId){
-  const src=originId?SOURCES[originId]:null; const own=src&&src.owner==='Nimbus';
+  const src=originId?SOURCES[originId]:null; const own=src&&src.owner==='Dell';
   if(c.attr==='returns'||c.attr==='warranty') return {auto:false,owner:'Legal and Compliance',text:'Approve policy FAQ update and send correction request to '+(src?src.name:'source')};
   if(own && (c.attr==='price'||c.attr==='stock')) return {auto:true,owner:'Product Data Lead',text:'Resync '+src.name+' from the product record'};
   if(own) return {auto:false,owner:'Content Lead',text:'Retire '+src.name+' and redirect to the current product page'};
@@ -551,10 +551,10 @@ function delta(cur,prev,key,better='up',asPct=true){
 function renderKpis(){
   const m=state.metrics,p=state.prev;
   $('#kpis').innerHTML=`
-   <div class="kpi"><span class="eyebrow">AI inclusion</span><span class="v">${pct(m.incl)}</span>${delta(m,p,'incl')}<span class="d">of shopping answers mention Nimbus</span></div>
+   <div class="kpi"><span class="eyebrow">AI inclusion</span><span class="v">${pct(m.incl)}</span>${delta(m,p,'incl')}<span class="d">of shopping answers mention Dell</span></div>
    <div class="kpi"><span class="eyebrow">Fact accuracy</span><span class="v">${pct(m.acc)}</span>${delta(m,p,'acc')}<span class="d">${m.claims} claims checked</span></div>
    <div class="kpi"><span class="eyebrow">Wrong facts live</span><span class="v">${m.errors}</span>${delta(m,p,'errors','down',false)}<span class="d">${m.high} high severity</span></div>
-   <div class="kpi"><span class="eyebrow">Avg position</span><span class="v">#${m.avgRank.toFixed(1)}</span>${delta(m,p,'avgRank','down',false)}<span class="d">when Nimbus is mentioned</span></div>`;
+   <div class="kpi"><span class="eyebrow">Avg position</span><span class="v">#${m.avgRank.toFixed(1)}</span>${delta(m,p,'avgRank','down',false)}<span class="d">when Dell is mentioned</span></div>`;
   $('#nIssues').textContent=m.errors; $('#nWaiting').textContent=m.waiting;
   $('#nIssues').classList.toggle('hot',m.errors>0);
   $('#sweepLabel').textContent='Sweep '+state.sweep+' · '+ANSWERS.length+' answers';
@@ -583,10 +583,10 @@ function renderByAssistant(){
     const rs=state.results.filter(r=>r.a.id===a.id&&r.q.kind==='shopping'); const v=rs.filter(r=>r.rank).length/rs.length;
     return `<div class="bar"><span>${a.name}</span><div class="track"><div class="fill" style="width:${v*100}%"></div></div><span class="num">${pct(v)}</span></div>`;
   }).join('');
-  const brands=['Nimbus',...['Kestrel','Orion','Vertex']];
+  const brands=['Dell',...['Kestrel','Orion','Vertex']];
   const counts=brands.map(b=>({b,n:state.results.filter(r=>r.order.some(o=>o.startsWith(b))).length}));
   const tot=counts.reduce((s,c)=>s+c.n,0);
-  $('#sov').innerHTML=counts.sort((x,y)=>y.n-x.n).map(c=>`<div class="bar"><span>${c.b}</span><div class="track"><div class="fill ${c.b==='Nimbus'?'':'rival'}" style="width:${c.n/tot*100}%"></div></div><span class="num">${pct(c.n/tot)}</span></div>`).join('');
+  $('#sov').innerHTML=counts.sort((x,y)=>y.n-x.n).map(c=>`<div class="bar"><span>${c.b}</span><div class="track"><div class="fill ${c.b==='Dell'?'':'rival'}" style="width:${c.n/tot*100}%"></div></div><span class="num">${pct(c.n/tot)}</span></div>`).join('');
 }
 function issueCard(i,compact){
   const d=state.decisions[i.issueId];
@@ -632,10 +632,10 @@ function highlight(text,claims){
 }
 function renderDetail(){
   const r=state.results.find(x=>x.id===state.selected); if(!r) return;
-  $('#cellDetail').innerHTML=`<header><div><span class="eyebrow">${esc(r.a.name)} · ${r.rank?'Nimbus at #'+r.rank:'Nimbus not listed'}</span><h3 style="margin-top:4px">${esc(r.q.text)}</h3></div></header>
+  $('#cellDetail').innerHTML=`<header><div><span class="eyebrow">${esc(r.a.name)} · ${r.rank?'Dell at #'+r.rank:'Dell not listed'}</span><h3 style="margin-top:4px">${esc(r.q.text)}</h3></div></header>
    <div class="answer">${highlight(r.text,r.claims)}</div>
    <div class="meta"><span>Claims checked: ${r.claims.length} · wrong: ${r.claims.filter(c=>!c.ok).length}</span><span>Order of brands in answer: ${r.order.join(', ')||'none'}</span></div>
-   <div><span class="eyebrow">Cited sources</span><div class="srcs" style="margin-top:6px">${r.src.map(s=>`<span class="chip ${SOURCES[s].owner==='Nimbus'?'auto':'low'}">${esc(SOURCES[s].name)}</span>`).join('')}</div></div>`;
+   <div><span class="eyebrow">Cited sources</span><div class="srcs" style="margin-top:6px">${r.src.map(s=>`<span class="chip ${SOURCES[s].owner==='Dell'?'auto':'low'}">${esc(SOURCES[s].name)}</span>`).join('')}</div></div>`;
 }
 function renderSources(){
   const rows=Object.entries(SOURCES).map(([id,s])=>{
@@ -668,7 +668,7 @@ function renderAll(){renderKpis();renderTrend();renderByAssistant();renderIssues
 /* ===================== Try it ===================== */
 function runTry(){
   const text=$('#tryText').value; const claims=extractClaims(text);
-  if(!claims.length){$('#tryOut').innerHTML='<div class="empty">No claims about Nimbus products or policies found. Mention a product by name, like "Nimbus Air 14".</div>';return;}
+  if(!claims.length){$('#tryOut').innerHTML='<div class="empty">No claims about Dell products or policies found. Mention a product by name, like "Dell 14".</div>';return;}
   const wrong=claims.filter(c=>!c.ok).length;
   $('#tryOut').innerHTML=`<div class="answer" style="margin-bottom:12px">${highlight(text,claims)}</div>
    <p style="margin:0 0 10px"><b>${claims.length}</b> claims found, <b style="color:${wrong?'var(--bad)':'var(--good)'}">${wrong}</b> wrong.</p>
