@@ -5,18 +5,18 @@ set -euo pipefail
 cd "$(dirname "$0")"
 PORT="${PORT:-8080}"
 
-echo "Building ShelfSight..."
+echo "Building SimplyShop..."
 ./build.sh
 
-echo "Starting ShelfSight on http://localhost:${PORT}"
+echo "Starting SimplyShop on http://localhost:${PORT}"
 python3 -m http.server "$PORT" >/dev/null 2>&1 &
 SERVER_PID=$!
 trap 'kill $SERVER_PID 2>/dev/null' EXIT
 sleep 1
 
 echo "Checking the app is up..."
-if curl -s "http://localhost:${PORT}/index.html" | grep -q "ShelfSight Console"; then
-  echo "OK: ShelfSight is running. Open http://localhost:${PORT} in your browser."
+if curl -s "http://localhost:${PORT}/index.html" | grep -q "SimplyShop Console"; then
+  echo "OK: SimplyShop is running. Open http://localhost:${PORT} in your browser."
 else
   echo "Server did not respond as expected." && exit 1
 fi

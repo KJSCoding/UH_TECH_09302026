@@ -6,7 +6,7 @@
 <style>html,body{height:100%;margin:0}</style>
 </head>
 <body>
-<title>ShelfSight Console</title>
+<title>SimplyShop Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -140,6 +140,19 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
 .tier ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 .empty{color:var(--muted);padding:10px 0}
 .view[hidden]{display:none!important}
+.kpi .src{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.stat{display:flex;flex-direction:column;gap:2px}
+.stat .v{font-family:var(--f-display);font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums}
+.stat .d{color:var(--muted);font-size:.84rem}
+.alert{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:8px;background:var(--bad-soft)}
+.alert .dot{width:8px;height:8px;border-radius:50%;background:var(--bad);margin-top:6px;flex:none}
+.alert span{color:var(--muted);font-size:.84rem}
+.up{color:var(--good)} .down{color:var(--bad)}
+.plans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.plans > div{border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.plans > div.gold{border-color:var(--accent)}
+.plans ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 
 @media (max-width:900px){
   .shell{grid-template-columns:minmax(0,1fr)}
@@ -149,7 +162,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
   nav.views button{white-space:nowrap;gap:6px}
   main{padding-inline:16px}
   .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .grid2,.tier{grid-template-columns:minmax(0,1fr)}
+  .grid2,.tier,.grid3,.plans{grid-template-columns:minmax(0,1fr)}
   .issue{grid-template-columns:minmax(0,1fr)}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -158,14 +171,17 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
 <div class="shell">
   <aside class="rail">
     <div class="brand">
-      <span class="logo"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="1" width="20" height="20" rx="5" fill="var(--accent)"/><path d="M6 14.5l3.5-3.5 2.5 2.5L16.5 8" stroke="var(--accent-ink)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>ShelfSight</span>
-      <small>Trustworthy AI product discovery</small>
+      <span class="logo"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="1" width="20" height="20" rx="5" fill="var(--accent)"/><path d="M6 14.5l3.5-3.5 2.5 2.5L16.5 8" stroke="var(--accent-ink)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>SimplyShop</span>
+      <small>Company dashboard · trustworthy AI shopping</small>
     </div>
     <nav class="views" aria-label="Views">
       <button data-view="overview">Overview</button>
       <button data-view="visibility">Visibility</button>
       <button data-view="truth">Truth Check <span class="count hot" id="nIssues">0</span></button>
       <button data-view="sources">Sources</button>
+      <button data-view="changes">Change Impact</button>
+      <button data-view="insights">Shopper Insights</button>
+      <button data-view="impact">Business Impact</button>
       <button data-view="approvals">Approvals <span class="count" id="nWaiting">0</span></button>
       <button data-view="tryit">Try it</button>
       <button data-view="governance">Governance</button>
@@ -184,7 +200,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
         <button class="btn primary" id="rerun">Re-run all questions</button>
       </div>
     </div>
-    <div class="notice">Demo mode: the Dell prices, specs and stock shown here are sample values, not live Dell data. Competitor names are placeholders and the assistant answers are simulated sample runs. The claim checker, source tracing, severity scoring and approval rules run live in your browser. Approve fixes, then re-run the questions to see the numbers move.</div>
+    <div class="notice">Demo mode: the Dell prices, specs and stock shown here are sample values, not live Dell data. Competitor names are placeholders, the assistant answers are simulated sample runs, and shopper insights, conversion and trust figures are sample SimplyShop extension data. The claim checker, source tracing, severity scoring and approval rules run live in your browser. Approve fixes, then re-run the questions to see the numbers move.</div>
 
     <!-- OVERVIEW -->
     <section class="view" id="v-overview">
@@ -209,6 +225,68 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
           <header><h3>Needs attention</h3><button class="btn small" data-go="truth">Open Truth Check</button></header>
           <div class="issues" id="topIssues"></div>
         </div>
+      </div>
+      <div class="panel" style="margin-top:20px">
+        <header><div><h3>Alerts sent</h3><p>High severity errors go straight to the owner by Slack or email. Everything else rolls into a weekly digest.</p></div><span class="eyebrow" id="digest"></span></header>
+        <div class="issues" id="alerts"></div>
+      </div>
+    </section>
+
+    <!-- CHANGE IMPACT -->
+    <section class="view" id="v-changes" hidden>
+      <div class="panel">
+        <header><div><h2>Did our changes help?</h2><p>Every change Dell makes (a product page update, a price change, new reviews, a retailer correction) is logged, and the same questions are asked again before and after. Approve fixes and re-run the questions to add live rows.</p></div></header>
+        <div class="tablewrap"><table id="changeTable"></table></div>
+      </div>
+      <div class="grid3" style="margin-top:20px" id="changeStats"></div>
+    </section>
+
+    <!-- SHOPPER INSIGHTS -->
+    <section class="view" id="v-insights" hidden>
+      <div class="notice">Built from opt in SimplyShop extension users. Companies only ever see totals, and any group smaller than 50 shoppers is hidden. Sample data for the demo.</div>
+      <div class="grid3" style="margin-top:20px" id="insightStats"></div>
+      <div class="grid2" style="margin-top:20px">
+        <div class="panel">
+          <header><div><h3>Why shoppers picked a competitor</h3><p>Main reason given or inferred when a shopper compared Dell and bought something else.</p></div></header>
+          <div class="bars" id="lossReasons"></div>
+        </div>
+        <div class="panel">
+          <header><div><h3>Why shoppers picked Dell</h3><p>Main reason when Dell won the comparison.</p></div></header>
+          <div class="bars" id="winReasons"></div>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:20px">
+        <header><div><h3>Head to head</h3><p>Shoppers who compared Dell with each competitor in an AI chat over the last 30 days.</p></div></header>
+        <div class="tablewrap"><table id="h2h"></table></div>
+      </div>
+      <div class="grid2" style="margin-top:20px">
+        <div class="panel">
+          <header><div><h3>What shoppers are asking</h3><p>Top question themes in the laptop category.</p></div></header>
+          <div class="bars" id="topics"></div>
+        </div>
+        <div class="panel">
+          <header><div><h3>Budget shoppers bring</h3><p>Stated or implied budget in the question.</p></div></header>
+          <div class="bars" id="budgets"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BUSINESS IMPACT -->
+    <section class="view" id="v-impact" hidden>
+      <div class="grid3" id="impactStats"></div>
+      <div class="grid2" style="margin-top:20px">
+        <div class="panel">
+          <header><div><h3>What wrong facts cost</h3><p>Estimated weekly cost of each wrong fact that is still live, by severity. Assumptions are listed so finance can adjust them.</p></div></header>
+          <div class="tablewrap"><table id="costTable"></table></div>
+        </div>
+        <div class="panel">
+          <header><div><h3>Shopper trust</h3><p>Thumbs up or down shoppers give a SimplyShop check.</p></div></header>
+          <div id="trust"></div>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:20px">
+        <header><div><h3>Partner deals and conversion</h3><p>Dell deals shown in the extension. Every one is labeled "Partner deal" to shoppers, and paying never changes ranking.</p></div></header>
+        <div class="tablewrap"><table id="deals"></table></div>
       </div>
     </section>
 
@@ -250,7 +328,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
         <div class="queue" id="queue"></div>
       </div>
       <div class="panel" style="margin-top:20px">
-        <header><div><h3>Content gaps</h3><p>Shopping questions where Dell is missing. ShelfSight drafts the content; a person approves it before it goes live.</p></div></header>
+        <header><div><h3>Content gaps</h3><p>Shopping questions where Dell is missing. SimplyShop drafts the content; a person approves it before it goes live.</p></div></header>
         <div class="queue" id="gaps"></div>
       </div>
       <div class="panel" style="margin-top:20px">
@@ -304,6 +382,14 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
           <tr><td>New assistants</td><td>Each assistant is a small adapter; the checker and rules stay the same</td><td>New assistant live in under a week</td></tr>
           <tr><td>Time to fix</td><td>Clock starts when an error is first detected</td><td>High severity fixed in 48 hours</td></tr>
         </table></div>
+      </div>
+      <div class="panel" style="margin-top:20px">
+        <header><div><h3>Company plans</h3><p>Plans change how much a company sees and how fast. They never change where a brand ranks for shoppers.</p></div></header>
+        <div class="plans">
+          <div><span class="chip low">Bronze</span><ul><li>AI Visibility and Accuracy Watch</li><li>Weekly report</li><li>One product line</li></ul></div>
+          <div><span class="chip med">Silver</span><ul><li>Everything in Bronze</li><li>Source Tracing and Change Impact</li><li>Daily alerts and approvals workflow</li><li>Multiple product lines</li></ul></div>
+          <div class="gold"><span class="chip auto">Gold</span><ul><li>Everything in Silver</li><li>Shopper Insights and head to head</li><li>Real time alerts</li><li>Verified live data feed into the extension, partner deals</li><li>Dedicated SimplyShop team</li></ul></div>
+        </div>
       </div>
     </section>
   </main>
@@ -495,7 +581,7 @@ function routeAction(c,originId){
 }
 
 /* ===================== State ===================== */
-const state={sweep:1,decisions:{},gapDecisions:{},log:[],prev:null,metrics:null,selected:'q1_chatgpt',results:[]};
+const state={sweep:1,decisions:{},gapDecisions:{},log:[],prev:null,metrics:null,selected:'q1_chatgpt',results:[],detected:{},resolved:[],pending:[],changes:[],exposure0:null};
 const t0=new Date(); let tick=0;
 function stamp(){const d=new Date(t0.getTime()+ (tick++)*60000); return d.toTimeString().slice(0,5);}
 function addLog(actor,msg){state.log.unshift({t:stamp(),actor,msg});}
@@ -519,9 +605,18 @@ function runSweep(){
   });
   // automatic actions fire immediately on detection
   for(const r of state.results) for(const c of r.claims) if(!c.ok && c.act.auto && !state.decisions[c.issueId]){
-    state.decisions[c.issueId]='auto'; addLog('ShelfSight','Auto: '+c.act.text+' ('+c.product+', '+TYPE[c.attr].toLowerCase()+')');
+    state.decisions[c.issueId]='auto'; addLog('SimplyShop','Auto: '+c.act.text+' ('+c.product+', '+TYPE[c.attr].toLowerCase()+')');
+    state.pending.push('Auto: '+c.act.text);
+  }
+  // track when issues were first seen and when they stopped appearing
+  const live=new Set(openIssues().map(i=>i.issueId));
+  for(const id of Object.keys(state.detected)) if(!live.has(id) && !state.resolved.find(r=>r.id===id)) state.resolved.push({id,hours:(state.sweep-state.detected[id])*24});
+  for(const i of openIssues()) if(!(i.issueId in state.detected)){
+    state.detected[i.issueId]=state.sweep;
+    if(i.sev.level==='high') addLog('SimplyShop','Alert sent to '+i.act.owner+' by Slack: '+TYPE[i.attr]+', '+i.product+' on '+i.r.a.name);
   }
   state.prev=state.metrics; state.metrics=computeMetrics();
+  if(state.exposure0===null) state.exposure0=state.metrics.exposure;
 }
 function computeMetrics(){
   const shop=state.results.filter(r=>r.q.kind==='shopping');
@@ -532,8 +627,27 @@ function computeMetrics(){
   const acc=claims.filter(c=>c.ok).length/claims.length;
   const issues=openIssues();
   const waiting=issues.filter(i=>!i.act.auto && !state.decisions[i.issueId]).length + GAPS.filter(g=>!state.gapDecisions[g.id]).length;
-  return {incl,avgRank,acc,claims:claims.length,errors:issues.length,high:issues.filter(i=>i.sev.level==='high').length,waiting};
+  const exposure=issues.reduce((s,i)=>s+COST[i.sev.level],0);
+  const hrs=state.resolved.map(r=>r.hours).sort((a,b)=>a-b);
+  const ttf=hrs.length?hrs[Math.floor((hrs.length-1)/2)]:null;
+  return {incl,avgRank,acc,claims:claims.length,errors:issues.length,high:issues.filter(i=>i.sev.level==='high').length,waiting,exposure,ttf};
 }
+const COST={high:5200,med:1800,low:450};
+const money=n=>'$'+Math.round(n).toLocaleString('en-US');
+/* Sample extension data (opt in shoppers, last 30 days) */
+const EXT={sessions:18400,compared:4260,win:.41,conversion:.068,trust:4.4,ratings:2180,flagged:312,refurb:.22};
+const LOSS=[['Battery life',.34],['Price',.27],['Weight and portability',.16],['Brand and design',.12],['Reviews',.11]];
+const WINS=[['Price for the specs',.38],['Deal or coupon',.24],['Business support and warranty',.17],['Configuration options',.13],['Reviews',.08]];
+const H2H=[['Kestrel Lite 14',1480,.36,'Battery life','Price for the specs'],['Orion Book 15',1120,.47,'Price','Deal or coupon'],['Vertex Go 13',930,.39,'Weight and portability','Configuration options'],['Kestrel Pro 16',730,.44,'Brand and design','Business support and warranty']];
+const TOPICS=[['Best laptop under a budget',.31],['Laptop for college',.22],['Battery life',.14],['Gaming or creative work',.12],['Business laptops',.11],['Refurbished or used',.10]];
+const BUDGETS=[['Under $400',.14],['$400 to $499',.29],['$500 to $699',.26],['$700 to $999',.19],['$1,000 and up',.12]];
+const DEALS=[['Dell 14: 10% student coupon',4210,612,48],['Dell 16 2-in-1: $30 off this week',2980,401,31],['Dell Pro 16: free 3 year warranty upgrade',1540,188,14],['Certified refurbished Dell 14 from $389',2240,355,27]];
+const CHANGES_HIST=[
+  {when:'Week 2',change:'Added spec tables and an FAQ to the Dell 14 product page',owner:'Content Lead',bi:.40,ai:.45,ba:.64,aa:.66},
+  {when:'Week 3',change:'Price drop on Dell 16 2-in-1 synced to all retail feeds',owner:'Product Data Lead',bi:.45,ai:.45,ba:.66,aa:.69},
+  {when:'Week 4',change:'Correction request accepted by a major retailer listing',owner:'Partner Manager',bi:.45,ai:.50,ba:.69,aa:.71},
+  {when:'Week 5',change:'Removed an outdated 2024 spec sheet from dell.com',owner:'Content Lead',bi:.50,ai:.55,ba:.71,aa:.72}
+];
 function openIssues(){
   return state.results.flatMap(r=>r.claims.filter(c=>!c.ok).map(c=>({...c,r}))).sort((x,y)=>y.sev.score-x.sev.score);
 }
@@ -554,7 +668,11 @@ function renderKpis(){
    <div class="kpi"><span class="eyebrow">AI inclusion</span><span class="v">${pct(m.incl)}</span>${delta(m,p,'incl')}<span class="d">of shopping answers mention Dell</span></div>
    <div class="kpi"><span class="eyebrow">Fact accuracy</span><span class="v">${pct(m.acc)}</span>${delta(m,p,'acc')}<span class="d">${m.claims} claims checked</span></div>
    <div class="kpi"><span class="eyebrow">Wrong facts live</span><span class="v">${m.errors}</span>${delta(m,p,'errors','down',false)}<span class="d">${m.high} high severity</span></div>
-   <div class="kpi"><span class="eyebrow">Avg position</span><span class="v">#${m.avgRank.toFixed(1)}</span>${delta(m,p,'avgRank','down',false)}<span class="d">when Dell is mentioned</span></div>`;
+   <div class="kpi"><span class="eyebrow">Avg position</span><span class="v">#${m.avgRank.toFixed(1)}</span>${delta(m,p,'avgRank','down',false)}<span class="d">when Dell is mentioned</span></div>
+   <div class="kpi"><span class="eyebrow">Time to fix</span><span class="v">${m.ttf===null?'None yet':m.ttf+' hr'}</span><span class="d">${state.resolved.length} wrong facts fixed so far</span><span class="d">median, detection to gone</span></div>
+   <div class="kpi"><span class="eyebrow">Win rate vs. competitors</span><span class="v">${pct(EXT.win)}</span><span class="d">of ${EXT.compared.toLocaleString('en-US')} shoppers who compared</span><span class="src">Extension sample</span></div>
+   <div class="kpi"><span class="eyebrow">AI referral conversion</span><span class="v">${(EXT.conversion*100).toFixed(1)}%</span><span class="d">purchases per SimplyShop click</span><span class="src">Extension sample</span></div>
+   <div class="kpi"><span class="eyebrow">Weekly cost of wrong facts</span><span class="v">${money(m.exposure)}</span>${delta(m,p,'exposure','down',false).replace(/([+-]?)(\d[\d.]*) vs/,(x,sg,n)=>sg+'$'+Math.round(+n).toLocaleString('en-US')+' vs')}<span class="d">estimated, from wrong facts still live</span></div>`;
   $('#nIssues').textContent=m.errors; $('#nWaiting').textContent=m.waiting;
   $('#nIssues').classList.toggle('hot',m.errors>0);
   $('#sweepLabel').textContent='Sweep '+state.sweep+' · '+ANSWERS.length+' answers';
@@ -663,7 +781,46 @@ function renderQueue(){
   }).join('');
   $('#log').innerHTML=state.log.map(l=>`<div><span>${l.t}</span><b>${esc(l.actor)}</b><span>${esc(l.msg)}</span></div>`).join('');
 }
-function renderAll(){renderKpis();renderTrend();renderByAssistant();renderIssues();renderGrid();renderSources();renderQueue();}
+function bars(el,rows,fmtv=pct,rival=false){ $(el).innerHTML=rows.map(([k,v])=>`<div class="bar"><span>${esc(k)}</span><div class="track"><div class="fill ${rival?'rival':''}" style="width:${Math.min(100,v*100/Math.max(...rows.map(r=>r[1])))}%"></div></div><span class="num">${fmtv(v)}</span></div>`).join(''); }
+function stat(label,v,d){return `<div class="panel stat"><span class="eyebrow">${label}</span><span class="v">${v}</span><span class="d">${d}</span></div>`;}
+function renderAlerts(){
+  const hi=openIssues().filter(i=>i.sev.level==='high'); const low=openIssues().filter(i=>i.sev.level!=='high').length;
+  $('#digest').textContent=low+' lower severity items in this week\'s digest';
+  $('#alerts').innerHTML=hi.length?hi.map(i=>`<div class="alert"><i class="dot"></i><div><b>${esc(TYPE[i.attr])}: ${esc(i.product)} on ${esc(i.r.a.name)}</b><br><span>AI said ${esc(fmt[i.attr](i.said))}, truth is ${esc(fmt[i.attr](i.truth))} · sent to ${esc(i.act.owner)} by Slack and email at detection</span></div></div>`).join(''):'<div class="empty">No high severity errors live. Nothing needs an alert right now.</div>';
+}
+function renderChanges(){
+  const rows=[...CHANGES_HIST.map(c=>({...c,sample:true})),...state.changes];
+  const d=(a,b)=>{const x=Math.round((b-a)*100); return `<span class="${x>0?'up':x<0?'down':''}">${x>0?'+':''}${x} pts</span>`;};
+  $('#changeTable').innerHTML='<tr><th>When</th><th>Change</th><th>Owner</th><th class="c">Inclusion</th><th class="c">Accuracy</th><th>Verdict</th></tr>'+
+    rows.map(c=>{const helped=(c.ai-c.bi)+(c.aa-c.ba); return `<tr><td class="mono">${esc(c.when)}${c.sample?'':' <span class="chip auto">Live</span>'}</td><td>${esc(c.change)}</td><td>${esc(c.owner)}</td><td class="c num">${pct(c.bi)} to ${pct(c.ai)}<br>${d(c.bi,c.ai)}</td><td class="c num">${pct(c.ba)} to ${pct(c.aa)}<br>${d(c.ba,c.aa)}</td><td>${helped>0.001?'<span class="chip ok">Helped</span>':helped<-0.001?'<span class="chip high">Hurt</span>':'<span class="chip low">No effect</span>'}</td></tr>`;}).reverse().join('');
+  const first=CHANGES_HIST[0], m=state.metrics;
+  $('#changeStats').innerHTML=stat('Changes tracked',rows.length,'page updates, price changes, corrections')+
+    stat('Inclusion since tracking began',pct(first.bi)+' to '+pct(m.incl),'shopping answers that mention Dell')+
+    stat('Accuracy since tracking began',pct(first.ba)+' to '+pct(m.acc),'claims about Dell that are correct');
+}
+function renderInsights(){
+  $('#insightStats').innerHTML=stat('Shopping chats checked',EXT.sessions.toLocaleString('en-US'),'last 30 days, laptops')+
+    stat('Compared Dell with a competitor',EXT.compared.toLocaleString('en-US'),'Dell won '+pct(EXT.win)+' of them')+
+    stat('Asked about refurbished',pct(EXT.refurb),'a demand signal for certified refurbished');
+  bars('#lossReasons',LOSS,pct,true); bars('#winReasons',WINS); bars('#topics',TOPICS); bars('#budgets',BUDGETS,pct,true);
+  $('#h2h').innerHTML='<tr><th>Competitor</th><th class="c">Shoppers compared</th><th class="c">Dell win rate</th><th>Top reason Dell lost</th><th>Top reason Dell won</th></tr>'+
+    H2H.map(r=>`<tr><td>${r[0]}</td><td class="c num">${r[1].toLocaleString('en-US')}</td><td class="c"><span class="chip ${r[2]>=.45?'ok':r[2]>=.4?'med':'high'}">${pct(r[2])}</span></td><td>${r[3]}</td><td>${r[4]}</td></tr>`).join('');
+}
+function renderImpact(){
+  const m=state.metrics; const saved=Math.max(0,state.exposure0-m.exposure);
+  $('#impactStats').innerHTML=stat('Weekly cost of wrong facts live',money(m.exposure),m.errors+' wrong facts still in AI answers')+
+    stat('Saved since first sweep',money(saved)+' / wk','from wrong facts that stopped appearing')+
+    stat('Checks shoppers flagged as wrong info',EXT.flagged.toLocaleString('en-US'),'last 30 days, from the extension');
+  const by=l=>openIssues().filter(i=>i.sev.level===l).length;
+  $('#costTable').innerHTML='<tr><th>Severity</th><th class="c">Live now</th><th class="c">Cost each per week</th><th class="c">Total per week</th></tr>'+
+    ['high','med','low'].map(l=>`<tr><td><span class="chip ${l}">${l==='high'?'High':l==='med'?'Medium':'Low'}</span></td><td class="c num">${by(l)}</td><td class="c num">${money(COST[l])}</td><td class="c num">${money(by(l)*COST[l])}</td></tr>`).join('')+
+    '<tr><td colspan="4" style="color:var(--muted);font-size:.82rem">Assumptions: returns caused by wrong info at about $85 each in shipping and restocking, support contacts at about $12 each, and lost sales when a shopper walks away. Finance can edit these per company.</td></tr>';
+  $('#trust').innerHTML=`<div class="stat"><span class="v">${EXT.trust} / 5</span><span class="d">from ${EXT.ratings.toLocaleString('en-US')} shopper ratings · Extension sample</span></div>
+    <div class="bars" style="margin-top:12px">${[['Found the price correct',.93],['Found the deal useful',.81],['Would use it again',.88]].map(([k,v])=>`<div class="bar"><span style="font-size:.82rem">${k}</span><div class="track"><div class="fill" style="width:${v*100}%"></div></div><span class="num">${pct(v)}</span></div>`).join('')}</div>`;
+  $('#deals').innerHTML='<tr><th>Partner deal</th><th class="c">Views</th><th class="c">Clicks</th><th class="c">Purchases</th><th class="c">Conversion</th></tr>'+
+    DEALS.map(d=>`<tr><td>${esc(d[0])} <span class="chip low">Partner deal</span></td><td class="c num">${d[1].toLocaleString('en-US')}</td><td class="c num">${d[2]}</td><td class="c num">${d[3]}</td><td class="c num">${(d[3]/d[2]*100).toFixed(1)}%</td></tr>`).join('');
+}
+function renderAll(){renderKpis();renderTrend();renderByAssistant();renderIssues();renderGrid();renderSources();renderQueue();renderAlerts();renderChanges();renderInsights();renderImpact();}
 
 /* ===================== Try it ===================== */
 function runTry(){
@@ -687,29 +844,36 @@ document.addEventListener('click',e=>{
   if(t.dataset.view) show(t.dataset.view);
   if(t.dataset.go) show(t.dataset.go);
   if(t.dataset.cell){state.selected=t.dataset.cell; renderGrid();}
-  if(t.dataset.approve){state.decisions[t.dataset.approve]='approved'; const i=openIssues().find(x=>x.issueId===t.dataset.approve); addLog(i.act.owner,'Approved: '+i.act.text); state.metrics=computeMetrics(); renderAll();}
+  if(t.dataset.approve){state.decisions[t.dataset.approve]='approved'; const i=openIssues().find(x=>x.issueId===t.dataset.approve); addLog(i.act.owner,'Approved: '+i.act.text); state.pending.push(i.act.text+'|'+i.act.owner); state.metrics=computeMetrics(); renderAll();}
   if(t.dataset.reject){state.decisions[t.dataset.reject]='rejected'; const i=openIssues().find(x=>x.issueId===t.dataset.reject); addLog(i.act.owner,'Rejected: '+i.act.text); state.metrics=computeMetrics(); renderAll();}
-  if(t.dataset.gapok){state.gapDecisions[t.dataset.gapok]='approved'; const g=GAPS.find(x=>x.id===t.dataset.gapok); addLog(g.owner,'Approved and published: '+g.title); state.metrics=computeMetrics(); renderAll();}
+  if(t.dataset.gapok){state.gapDecisions[t.dataset.gapok]='approved'; const g=GAPS.find(x=>x.id===t.dataset.gapok); addLog(g.owner,'Approved and published: '+g.title); state.pending.push(g.title+'|'+g.owner); state.metrics=computeMetrics(); renderAll();}
   if(t.dataset.gapno){state.gapDecisions[t.dataset.gapno]='rejected'; const g=GAPS.find(x=>x.id===t.dataset.gapno); addLog(g.owner,'Rejected: '+g.title); state.metrics=computeMetrics(); renderAll();}
 });
 $('#rerun').addEventListener('click',()=>{
   const btn=$('#rerun'); btn.disabled=true; btn.textContent='Asking 5 assistants...';
   setTimeout(()=>{
-    state.sweep++; addLog('ShelfSight','Sweep '+state.sweep+': re-ran '+QUESTIONS.length+' questions on '+ASSISTANTS.length+' assistants');
-    runSweep(); (state.runsHistory=state.runsHistory||[]).push({incl:state.metrics.incl,acc:state.metrics.acc});
-    addLog('ShelfSight',`Sweep ${state.sweep} result: inclusion ${pct(state.metrics.incl)}, accuracy ${pct(state.metrics.acc)}, ${state.metrics.errors} wrong facts live`);
+    const before=state.metrics, done=state.pending.splice(0);
+    state.sweep++; addLog('SimplyShop','Sweep '+state.sweep+': re-ran '+QUESTIONS.length+' questions on '+ASSISTANTS.length+' assistants');
+    runSweep();
+    if(done.length){
+      const items=done.map(x=>{const [t,o]=x.split('|'); return {t:t.replace(/^Auto: /,''),o:o||'SimplyShop (automatic)'};});
+      const owners=[...new Set(items.map(i=>i.o))].join(', ');
+      const change=items.length===1?items[0].t:items.length+' fixes: '+items.map(i=>i.t).join('; ');
+      state.changes.push({when:'Sweep '+state.sweep,change,owner:owners,bi:before.incl,ai:state.metrics.incl,ba:before.acc,aa:state.metrics.acc});
+    } (state.runsHistory=state.runsHistory||[]).push({incl:state.metrics.incl,acc:state.metrics.acc});
+    addLog('SimplyShop',`Sweep ${state.sweep} result: inclusion ${pct(state.metrics.incl)}, accuracy ${pct(state.metrics.acc)}, ${state.metrics.errors} wrong facts live`);
     renderAll(); btn.disabled=false; btn.textContent='Re-run all questions';
   },900);
 });
 $('#tryBtn').addEventListener('click',runTry);
 
 /* ===================== Boot ===================== */
-addLog('ShelfSight','Sweep 1: asked '+QUESTIONS.length+' questions on '+ASSISTANTS.length+' assistants');
+addLog('SimplyShop','Sweep 1: asked '+QUESTIONS.length+' questions on '+ASSISTANTS.length+' assistants');
 runSweep(); state.runsHistory=[{incl:state.metrics.incl,acc:state.metrics.acc}];
-addLog('ShelfSight',`Sweep 1 result: inclusion ${pct(state.metrics.incl)}, accuracy ${pct(state.metrics.acc)}, ${state.metrics.errors} wrong facts live`);
+addLog('SimplyShop',`Sweep 1 result: inclusion ${pct(state.metrics.incl)}, accuracy ${pct(state.metrics.acc)}, ${state.metrics.errors} wrong facts live`);
 renderAll(); runTry();
 const start=(location.hash||'').slice(1);
-show(['overview','visibility','truth','sources','approvals','tryit','governance'].includes(start)?start:'overview');
+show(['overview','visibility','truth','sources','changes','insights','impact','approvals','tryit','governance'].includes(start)?start:'overview');
 </script>
 </body>
 </html>

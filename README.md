@@ -1,4 +1,4 @@
-# ShelfSight: Trustworthy AI Product Discovery
+# SimplyShop: Trustworthy AI Product Discovery
 
 University of Houston submission for the 2026 HSI Battle of the Brains.
 
@@ -6,13 +6,17 @@ Live demo: https://kjscoding.github.io/UH_TECH_09302026/
 
 ## What it does
 
-Shoppers now ask AI assistants "what's the best laptop under $500?" and buy from the short answer they get back. If the assistant leaves a brand out, or gets its price, specs, stock or return policy wrong, the brand loses the sale or eats the return. ShelfSight gives a company a control room for that new front door.
+Shoppers now ask AI assistants "what's the best laptop under $500?" and buy from the short answer they get back. If the assistant leaves a brand out, or gets its price, specs, stock or return policy wrong, the brand loses the sale or eats the return. SimplyShop gives a company a control room for that new front door.
 
 1. Visibility Monitor: asks a library of real shopper questions across ChatGPT, Gemini, Perplexity, Claude and Copilot, then scores whether the brand appears, at what position, and next to which competitors.
 2. Truth Check: splits every AI answer into individual claims (price, RAM, storage, battery, touchscreen, stock, returns, warranty) and checks each one against the company's product record, the single source of truth.
 3. Source Tracing: matches each wrong fact to the cited page it most likely came from (a stale retailer listing, an old review, an archived spec sheet) so the team fixes the cause, not the symptom.
 4. Fix Engine and Approvals: scores each error for customer harm and routes it. Safe fixes that only copy an approved fact (like resyncing the brand's own product feed) run automatically. Anything that publishes new copy, contacts an outside company, or touches policy wording waits for a named owner to approve.
-5. Audit and Governance: every action is logged with who took it and why. Owners, action tiers and scale controls are laid out in the Governance view.
+5. Change Impact: logs every change the company makes (page updates, price changes, retailer corrections) and shows whether inclusion and accuracy went up or down after it.
+6. Shopper Insights: from opt in SimplyShop extension users, totals only. Why shoppers picked a competitor, head to head win rates, top questions and budgets.
+7. Business Impact: estimated weekly cost of wrong facts still live, money saved as they get fixed, shopper trust, and partner deal conversion.
+8. Alerts: high severity errors go straight to the owner; the rest roll into a weekly digest.
+9. Audit and Governance: every action is logged with who took it and why. Owners, action tiers and scale controls are laid out in the Governance view.
 
 ## How to use the demo
 
