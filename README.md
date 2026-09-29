@@ -2,7 +2,9 @@
 
 University of Houston submission for the 2026 HSI Battle of the Brains.
 
-Live demo: https://kjscoding.github.io/UH_TECH_09302026/
+Full site (shopper side and company side): https://simplyshop-uh.lovable.app
+
+Company dashboard on its own: https://kjscoding.github.io/UH_TECH_09302026/
 
 ## What it does
 
