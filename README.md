@@ -6,11 +6,35 @@ Full site (shopper side and company side): https://simplyshop-uh.lovable.app
 
 Company dashboard on its own: https://kjscoding.github.io/UH_TECH_09302026/
 
+Start here if you are evaluating the technical implementation: the `monitor/` folder. It is the backend: it asks the AI assistants, checks every answer for hallucinations, traces the source, scores the harm, routes fixes through governance, and writes it all to a database. The dashboard sits on top.
+
+What is real and what is simulated: demo mode uses reproducible sample AI responses so judges do not need API keys. The claim checker, hallucination detection, source tracing, severity scoring, governance routing, database, and every metric run for real on that sample, in both the backend and the dashboard. Add one API key and `--live` to collect real answers. Dell prices, competitor names, and the shopper insights, returns, tickets and trust figures are sample data.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  Q[Shopper questions] --> A[AI assistant APIs<br/>ChatGPT, Gemini, Claude, Perplexity]
+  A --> C[Claim extraction]
+  T[Product record<br/>brand feed, retailer APIs] --> H
+  C --> H[Hallucination checker]
+  H --> S[Severity + source trace]
+  S --> D[(SQLite / Postgres<br/>sweeps, answers, claims, actions, source_pages)]
+  D --> B[Company dashboard]
+  B --> G{Automatic or<br/>needs a person?}
+  G -->|auto| F[Fix at the source]
+  G -->|approve| P[Named owner signs off] --> F
+  F --> R[Re-run questions] --> A
+  D --> X[Shopper extension<br/>verified price on the AI page]
+```
+
+The loop is the product: AI answer, wrong claim, truth comparison, likely source, harm score, controlled fix, human approval when needed, re-run, measured improvement.
+
 ## What it does
 
 Shoppers now ask AI assistants "what's the best laptop under $500?" and buy from the short answer they get back. If the assistant leaves a brand out, or gets its price, specs, stock or return policy wrong, the brand loses the sale or eats the return. SimplyShop gives a company a control room for that new front door.
 
-1. Visibility Monitor: asks a library of real shopper questions across ChatGPT, Gemini, Perplexity, Claude and Copilot, then scores whether the brand appears, at what position, and next to which competitors.
+1. Visibility Monitor: asks a library of real shopper questions across ChatGPT, Gemini, Perplexity, Claude and Copilot (live with an API key, sample answers in demo mode), then scores whether the brand appears, at what position, and next to which competitors.
 2. Hallucination Watch: splits every AI answer into individual claims and checks each one against the company's product record. Catches incorrect pricing, availability, features and policies, plus fabricated products (retired or never existed) and misleading comparisons against them. Each one gets a severity score and is traced to the page the AI most likely learned it from.
 3. Source Tracing: matches each wrong fact to the cited page it most likely came from (a stale retailer listing, an old review, an archived spec sheet) so the team fixes the cause, not the symptom.
 4. Fix Engine and Approvals: scores each error for customer harm and routes it. Safe fixes that only copy an approved fact (like resyncing the brand's own product feed) run automatically. Anything that publishes new copy, contacts an outside company, or touches policy wording waits for a named owner to approve.
@@ -47,6 +71,35 @@ python3 query_db.py         # read the results back from the database
 python3 run_sweep.py --live # asks the real assistants (set OPENAI_API_KEY, GOOGLE_API_KEY, ANTHROPIC_API_KEY or PERPLEXITY_API_KEY)
 ```
 
+Expected test output:
+
+```
+ok  test_correct_price_and_specs
+ok  test_wrong_price_is_flagged
+ok  test_budget_is_not_a_price_claim
+ok  test_competitor_numbers_are_not_credited_to_us
+ok  test_missing_touchscreen_is_caught
+ok  test_policy_without_product_name
+ok  test_rank_and_severity
+ok  test_structured_price_parser
+ok  test_fabricated_and_retired_products
+ok  test_misleading_comparison_against_retired_product
+ok  test_real_products_are_not_flagged_as_fabricated
+ok  test_database_round_trip
+12 tests passed
+```
+
+Expected sweep output (demo mode):
+
+```
+SimplyShop sweep for Dell  (40 answers, 62 claims checked)
+  Inclusion in shopping answers: 48%
+  Fact accuracy:                 79%
+  Hallucinations live:           13  (5 high severity)
+  ...
+Saved sweep #1 to simplyshop.db (tables: sweeps, answers, claims, actions, source_pages)
+```
+
 What one sweep does:
 
 1. Asks every AI assistant each question in `data/questions.json` through its official API (`simplyshop/assistants.py`). No scraping of chat sites. Perplexity returns the pages it used, which powers Source Tracing.
@@ -74,6 +127,8 @@ Production layout: these scripts run on a scheduler (cron or GitHub Actions) a f
 | Keep oversight working at scale | Governance tab: severity routing, monthly checker accuracy test, 5% spot checks, one adapter per assistant, per team views |
 | Ethics: no unfair recommendations, privacy | Partners can never buy rank; every partner deal labeled; sharing off by default; Global Privacy Control honored; what the brand can and cannot see (Governance tab, shopper site Privacy Center) |
 | Show improved inclusion, conversion and trust | Overview scorecard and trend chart; approve fixes, re-run, watch the numbers move; extension conversion and trust figures |
+
+How this differs from AI visibility monitoring tools (Profound and similar): those stop at telling marketing what the AI said. SimplyShop closes the loop: it traces the wrong claim to its source, scores the harm in returns and tickets, routes the fix through named owners, re-runs the questions and proves the fix worked, and corrects the answer for the shopper at the moment of purchase through the extension.
 
 What is real in this repo and what is simulated: the checker, source tracing, severity scoring, routing rules, database and metrics all run for real, on both the backend and in the dashboard. The AI answers, Dell prices, competitor names, and the shopper insights, returns, tickets and trust figures are sample data so judges can use everything without API keys or Dell's private data. Run `python3 run_sweep.py --live` with an API key to collect real answers.
 
