@@ -165,6 +165,15 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
   .grid2,.tier,.grid3,.plans{grid-template-columns:minmax(0,1fr)}
   .issue{grid-template-columns:minmax(0,1fr)}
 }
+/* Guided tour */
+.tour-spot{position:relative;z-index:1002;box-shadow:0 0 0 4px var(--accent),0 0 0 9999px rgba(10,14,22,.55);border-radius:10px}
+.tour-card{position:fixed;z-index:1003;max-width:360px;width:calc(100% - 32px);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:0 18px 50px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:10px}
+.tour-card .step{font-family:var(--f-mono);font-size:.72rem;color:var(--muted)}
+.tour-card h4{margin:0;font-family:var(--f-display);font-size:1.05rem}
+.tour-card p{margin:0;font-size:.9rem;color:var(--muted)}
+.tour-card .acts{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:4px}
+.tour-card .acts div{display:flex;gap:8px}
+.tour-arrow{position:fixed;z-index:1003;width:0;height:0;border:10px solid transparent}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media (max-width:900px){.framed .rail{padding-top:64px}}
 .framed .topbar .who{padding-right:0}
@@ -199,6 +208,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
       </div>
       <div class="sweep">
         <span class="mono" style="color:var(--muted);font-size:.82rem" id="sweepLabel">Sweep 1</span>
+        <button class="btn" id="tourBtn">Guide me through</button>
         <button class="btn primary" id="rerun">Re-run all questions</button>
       </div>
     </div>
@@ -947,6 +957,53 @@ $('#rerun').addEventListener('click',()=>{
 });
 $('#tryBtn').addEventListener('click',runTry);
 
+/* ===================== Guided tour ===================== */
+const TOUR=[
+  {view:'overview',sel:'#kpis',title:'The scoreboard',body:'How often Dell shows up in AI shopping answers, how many facts are right, and how many hallucinations are live right now. Everything below rolls up here.'},
+  {view:'overview',sel:'#trend',title:'Is it getting better?',body:'Inclusion and accuracy over time. Every time Dell fixes something and the questions are re-run, a new point lands here.'},
+  {view:'visibility',sel:'#grid',title:'Every question, every assistant',body:'Each cell is one AI answer. A number is Dell\'s position in it. Red means the answer mentions Dell but gets a fact wrong. Click any cell to read it with the claims marked.'},
+  {view:'truth',sel:'#hallucKinds',title:'Hallucination Watch',body:'Every wrong claim, grouped the way the case prompt describes them: pricing, availability, features, policies, fabricated products and misleading comparisons.'},
+  {view:'truth',sel:'#issueList',title:'Each one, with a cause and an owner',body:'What the AI said, the truth, how bad it is for a shopper, the likely cited source, and who is responsible for the fix.'},
+  {view:'sources',sel:'#srcTable',title:'Fix the cause, not the symptom',body:'The pages the assistants cite, ranked by how many hallucinations trace back to them. One stale retailer listing can be wrong in five assistants at once.'},
+  {view:'approvals',sel:'#queue',title:'A person signs off',body:'Anything risky waits here for a named owner. Try it: approve one or two fixes. Safe resyncs of already approved facts happen automatically and show up in the audit log below.'},
+  {view:'overview',sel:'#rerun',title:'Close the loop',body:'Now click Re-run all questions. In demo mode this re-runs the saved sample answers with the approved fixes applied, and the numbers move.'},
+  {view:'changes',sel:'#changeTable',title:'Did it help?',body:'Every change Dell made, with inclusion and accuracy before and after. Your re-run just added a live row at the top.'},
+  {view:'impact',sel:'#harmTable',title:'What it costs',body:'Returns and support tickets matched to each live hallucination, with what customers said. Accuracy has a dollar value.'},
+  {view:'insights',sel:'#lossReasons',title:'Why shoppers chose someone else',body:'From opted in shoppers, totals only, never a chat. This is the customer discovery data Dell cannot get anywhere else.'},
+  {view:'governance',sel:'.tier',title:'Who can do what',body:'Automatic, needs a person, never allowed. Plus owners, scale controls, what Dell can and cannot see, and the plans. That is the ethics and governance piece.'}
+];
+let tourI=-1, tourEls=null;
+function tourEnd(){ document.querySelectorAll('.tour-spot').forEach(e=>e.classList.remove('tour-spot')); if(tourEls){tourEls.card.remove();tourEls.arrow.remove();tourEls=null;} tourI=-1; $('#tourBtn').textContent='Guide me through'; }
+function tourShow(i){
+  if(i<0||i>=TOUR.length){ tourEnd(); return; }
+  tourI=i; const t=TOUR[i]; show(t.view);
+  document.querySelectorAll('.tour-spot').forEach(e=>e.classList.remove('tour-spot'));
+  const el=document.querySelector(t.sel); if(!el){ tourShow(i+1); return; }
+  el.classList.add('tour-spot');
+  if(!tourEls){ const card=document.createElement('div'); card.className='tour-card'; card.setAttribute('role','dialog'); const arrow=document.createElement('div'); arrow.className='tour-arrow'; document.body.append(card,arrow); tourEls={card,arrow}; }
+  tourEls.card.innerHTML=`<span class="step">Step ${i+1} of ${TOUR.length}</span><h4>${t.title}</h4><p>${t.body}</p>
+    <div class="acts"><button class="btn small" data-tour="end">Skip tour</button><div>${i>0?'<button class="btn small" data-tour="back">Back</button>':''}<button class="btn small primary" data-tour="next">${i===TOUR.length-1?'Done':'Next'}</button></div></div>`;
+  el.scrollIntoView({block:'center',behavior:(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)?'auto':'smooth'});
+  setTimeout(()=>{
+    const r=el.getBoundingClientRect(), c=tourEls.card, vw=innerWidth, vh=innerHeight; c.style.visibility='hidden'; c.style.display='flex';
+    const cw=c.offsetWidth, ch=c.offsetHeight; let top,left,dir;
+    if(r.bottom+ch+24<vh){ top=r.bottom+14; dir='up'; } else if(r.top-ch-24>0){ top=r.top-ch-14; dir='down'; } else { top=Math.max(12,vh-ch-12); dir='none'; }
+    left=Math.min(Math.max(12,r.left+r.width/2-cw/2),vw-cw-12);
+    c.style.top=top+'px'; c.style.left=left+'px'; c.style.visibility='visible';
+    const a=tourEls.arrow; a.style.display=dir==='none'?'none':'block';
+    const ax=Math.min(Math.max(r.left+r.width/2-10,left+12),left+cw-32);
+    if(dir==='up'){ a.style.borderBottomColor='var(--line)'; a.style.borderTopColor='transparent'; a.style.top=(top-20)+'px'; }
+    else { a.style.borderTopColor='var(--line)'; a.style.borderBottomColor='transparent'; a.style.top=(top+ch)+'px'; }
+    a.style.left=ax+'px';
+    c.querySelector('[data-tour="next"]').focus();
+  },350);
+  $('#tourBtn').textContent='Exit tour';
+}
+$('#tourBtn').addEventListener('click',()=>{ tourI<0?tourShow(0):tourEnd(); });
+document.addEventListener('click',e=>{ const b=e.target.closest('[data-tour]'); if(!b) return; const k=b.dataset.tour; if(k==='end') tourEnd(); else if(k==='back') tourShow(tourI-1); else tourShow(tourI+1); });
+document.addEventListener('keydown',e=>{ if(tourI<0) return; if(e.key==='Escape') tourEnd(); if(e.key==='ArrowRight') tourShow(tourI+1); if(e.key==='ArrowLeft') tourShow(tourI-1); });
+addEventListener('resize',()=>{ if(tourI>=0) tourShow(tourI); });
+
 /* ===================== Boot ===================== */
 try{ if(window.self!==window.top) document.documentElement.classList.add('framed'); }catch(e){ document.documentElement.classList.add('framed'); }
 addLog('SimplyShop','Sweep 1: asked '+QUESTIONS.length+' questions on '+ASSISTANTS.length+' assistants');
@@ -955,6 +1012,7 @@ addLog('SimplyShop',`Sweep 1 result: inclusion ${pct(state.metrics.incl)}, accur
 renderAll(); runTry();
 const start=(location.hash||'').slice(1);
 show(['overview','visibility','truth','sources','changes','insights','impact','approvals','tryit','governance'].includes(start)?start:'overview');
+if(start==='tour') setTimeout(()=>tourShow(0),400);
 </script>
 </body>
 </html>

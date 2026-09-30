@@ -48,7 +48,7 @@ Shoppers now ask AI assistants "what's the best laptop under $500?" and buy from
 
 The demo loads a real sponsor brand, Dell, with sample product data and placeholder competitors. Assistant answers are simulated sample runs so judges can use it without API keys. The claim checker, source tracing, severity scoring, routing rules and metrics all run live in the browser.
 
-Suggested path (about 3 minutes):
+Click "Guide me through" at the top of the dashboard for a 12 step walkthrough (or open the dashboard link with #tour). Suggested path if you would rather click around (about 3 minutes):
 
 1. Overview: see inclusion, fact accuracy, wrong facts live and average position.
 2. Visibility: click any cell to read that assistant's answer with each claim highlighted green (correct) or red (wrong).
