@@ -1,0 +1,12 @@
+{
+  "brand": "Dell",
+  "policy": { "returns_days": 30, "warranty_years": 1 },
+  "products": [
+    { "id": "dell14",  "name": "Dell 14",              "aliases": ["Dell 14"],              "price": 449, "ram_gb": 8,  "storage_gb": 256,  "battery_hours": 10, "touchscreen": false, "stock": "in stock" },
+    { "id": "dell16",  "name": "Dell 16 2-in-1",       "aliases": ["Dell 16 2-in-1", "Dell 16"], "price": 499, "ram_gb": 16, "storage_gb": 512,  "battery_hours": 8,  "touchscreen": true,  "stock": "in stock" },
+    { "id": "pro16",   "name": "Dell Pro 16",          "aliases": ["Dell Pro 16"],          "price": 899, "ram_gb": 16, "storage_gb": 1024, "battery_hours": 12, "touchscreen": false, "stock": "backorder" },
+    { "id": "cb3110",  "name": "Dell Chromebook 3110", "aliases": ["Dell Chromebook 3110", "Chromebook 3110"], "price": 249, "ram_gb": 4, "storage_gb": 64, "battery_hours": 11, "touchscreen": false, "stock": "discontinued" }
+  ],
+  "competitors": ["Kestrel Lite 14", "Orion Book 15", "Vertex Go 13", "Kestrel Pro 16", "Orion Slim 14"],
+  "note": "Sample values for the HSI Battle of the Brains demo. Not live Dell data. In production this file is replaced by the brand's product feed."
+}

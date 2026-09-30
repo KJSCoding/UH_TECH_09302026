@@ -1,0 +1,10 @@
+[
+  { "id": "q1", "text": "What are the best laptops under $500?", "kind": "shopping" },
+  { "id": "q2", "text": "Best laptop for college students?", "kind": "shopping" },
+  { "id": "q3", "text": "Dell 14 vs Kestrel Lite 14, which should I buy?", "kind": "brand" },
+  { "id": "q4", "text": "Does the Dell 16 2-in-1 have a touchscreen?", "kind": "brand" },
+  { "id": "q5", "text": "Best budget laptop with long battery life?", "kind": "shopping" },
+  { "id": "q6", "text": "What is the Dell laptop return policy?", "kind": "brand" },
+  { "id": "q7", "text": "Best laptop for a small business under $1000?", "kind": "shopping" },
+  { "id": "q8", "text": "Lightweight laptop under $500?", "kind": "shopping" }
+]

@@ -34,6 +34,30 @@ Suggested path (about 3 minutes):
 6. Click "Re-run all questions" at the top. Approved fixes take effect and the metrics and trend chart update.
 7. Try it: paste any AI answer about a Dell product and the checker grades it claim by claim.
 
+
+## The monitor: how the data actually gets collected
+
+The `monitor/` folder is a small, working version of the backend. It is what runs on a schedule in production. No framework, no install, Python 3 only.
+
+```
+cd monitor
+python3 test_checker.py     # 8 tests
+python3 run_sweep.py        # demo mode, no API keys needed
+python3 run_sweep.py --live # asks the real assistants (set OPENAI_API_KEY, GOOGLE_API_KEY, ANTHROPIC_API_KEY or PERPLEXITY_API_KEY)
+```
+
+What one sweep does:
+
+1. Asks every AI assistant each question in `data/questions.json` through its official API (`simplyshop/assistants.py`). No scraping of chat sites. Perplexity returns the pages it used, which powers Source Tracing.
+2. Splits each answer into claims and checks them against the brand's product record in `data/products.json` (`simplyshop/checker.py`). Wrong prices, specs, stock, features and policies are flagged, scored for customer harm, and traced to the cited page whose snapshot contains the wrong value.
+3. Prints a report and saves `output/sweep_<time>.json`, the same shape the dashboard reads.
+
+Demo mode uses `data/sample_answers.json`, so judges can run it with zero keys and get the same numbers the dashboard shows (52% inclusion, 83% accuracy, 10 wrong facts).
+
+Where the real prices come from (`simplyshop/prices.py`), most reliable first: the brand's own product feed, then retailer and affiliate APIs, and only then reading a public product page. For pages we read the structured product data (schema.org JSON) rather than scraping HTML, check robots.txt first, keep a slow rate, and never go behind a login.
+
+Production layout: these scripts run on a scheduler (cron or GitHub Actions) a few times a day, write to a Postgres database, and the dashboard reads from it. An LLM extracts claims from messier answers and this rule based checker validates them.
+
 ## Tech
 
 1. Plain HTML, CSS and JavaScript in one page (`src/app.html`), no framework and no build tools, so it hosts anywhere for free.
@@ -58,7 +82,8 @@ Then open http://localhost:8080. `run.sh` builds `index.html` from `src/app.html
 
 ## Files
 
-1. `src/app.html`: the app (markup, styles, data and engine)
+1. `src/app.html`: the dashboard (markup, styles, data and engine)
+2. `monitor/`: the backend sweep (ask the AIs, check the facts, trace the sources) with tests and demo data
 2. `build.sh`: wraps the app into `index.html`
 3. `index.html`: the built page GitHub Pages serves
 4. `run.sh`: build and serve locally

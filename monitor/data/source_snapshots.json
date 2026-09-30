@@ -1,0 +1,14 @@
+{
+  "_note": "What each cited page says right now. In production a fetcher fills this in automatically (structured data first, then page text). Sample values for the demo.",
+  "https://retailhub.example/dell-14": "Dell 14 $399 sold out",
+  "https://retailhub.example/dell-chromebook-3110": "Dell Chromebook 3110 in stock",
+  "https://feeds.example/dell-retail-feed": "Dell Pro 16 in stock",
+  "https://www.dell.com/archive/2024-spec-sheet.pdf": "Dell 16 2-in-1 non-touch display",
+  "https://techdaily.example/dell-14-touch-2025": "Dell 14 touchscreen",
+  "https://budgetbytes.example/longest-battery": "Dell 14 12 hours",
+  "https://speccompare.example/dell-14": "Dell 14 4GB RAM",
+  "https://dealsforum.example/dell-returns-2023": "14 day return",
+  "https://partnerstore.example/extended-warranty-promo": "2 year warranty",
+  "https://www.dell.com/laptops": "Dell 14 $449 8GB RAM 256GB SSD 10 hours. Dell 16 2-in-1 touchscreen $499. 30 day return, 1 year warranty.",
+  "https://www.dell.com/returns": "30 day return, 1 year warranty"
+}
