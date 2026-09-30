@@ -21,11 +21,28 @@ from urllib.parse import urlparse
 from dataclasses import dataclass, field, asdict
 from typing import Any
 
-# How much a wrong fact hurts a shopper, by fact type. Policies and money matter most.
-BASE_SEVERITY = {
-    "price": 3, "stock": 3, "returns": 4, "warranty": 4,
-    "touchscreen": 3, "ram_gb": 2, "storage_gb": 2, "battery_hours": 2,
-    "exists": 4, "comparison": 3,
+# Business risk model. Severity is not "how wrong is the fact", it is "what does this wrong fact
+# cost the company". Every hallucination lands in one of four categories, and the company's risk
+# profile says which level (1 to 5) each category is worth. Dell's defaults are below; a retailer
+# like Home Depot would keep losing_money at 5 and might put reputation at 4. The profile lives in
+# data/products.json under "risk_profile" so each company can tune it without touching code.
+DEFAULT_RISK_PROFILE = {
+    "levels": {5: "critical", 4: "high", 3: "moderate", 2: "low", 1: "minimal"},
+    "category_level": {
+        "losing_money": 5,    # money is leaving right now: refunds, cancelled orders, honored goodwill, chargebacks
+        "money_at_risk": 4,   # money involved but not yet lost: shoppers rule us out or buy elsewhere
+        "bad_data": 3,        # a wrong spec: no money moves on its own, but shoppers decide on bad information
+        "reputation": 3,      # nothing to buy at the end: shoppers hunt for a product we do not sell and lose trust
+    },
+    # Adjustments. "Doable and no reputation harm" is what makes something low risk.
+    "informational_drop": 1,     # bad_data in a non shopping answer drops one level
+    "low_reach_drop": 1,         # bad_data from a low reach assistant drops one more level
+    "returns_escalate_at": 5,    # this many linked returns in 30 days means money is leaving: straight to level 5
+    "tickets_escalate_at": 30,   # this many linked support tickets, or any returns at all, bumps one level
+}
+CATEGORY_LABEL = {
+    "losing_money": "Losing money", "money_at_risk": "Money at risk",
+    "bad_data": "Bad data", "reputation": "Reputation",
 }
 ERROR_TYPE = {
     "price": "Wrong price", "ram_gb": "Wrong spec", "storage_gb": "Wrong spec",
@@ -57,6 +74,9 @@ class Claim:
     severity_level: str | None = None
     likely_source: str | None = None
     hallucination_kind: str | None = None
+    risk_category: str | None = None      # losing_money / money_at_risk / bad_data / reputation
+    risk_reason: str | None = None        # one sentence a finance person would accept
+    risk_adjustments: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -89,6 +109,10 @@ class Checker:
         self.products = record["products"]
         self.competitors = record.get("competitors", [])
         self.brand_owned = record.get("brand_owned_sources", [])
+        # Company specific risk profile, merged over the defaults so a partial profile works.
+        self.risk = {**DEFAULT_RISK_PROFILE, **record.get("risk_profile", {})}
+        self.risk["levels"] = {int(k): v for k, v in {**DEFAULT_RISK_PROFILE["levels"], **self.risk.get("levels", {})}.items()}
+        self.risk["category_level"] = {**DEFAULT_RISK_PROFILE["category_level"], **self.risk.get("category_level", {})}
         # Products that were retired. If an AI recommends one, that is a hallucination.
         self.retired = {r["name"]: r for r in record.get("retired_products", [])}
         # Pattern for "<Brand> <Something> <number>" so we can spot model names we do not sell.
@@ -101,8 +125,12 @@ class Checker:
 
     # ---------- public API ----------
 
-    def check(self, question: dict, assistant: str, text: str, sources: list[str] | None = None) -> CheckedAnswer:
+    def check(self, question: dict, assistant: str, text: str, sources: list[str] | None = None,
+              harm: dict[str, dict] | None = None) -> CheckedAnswer:
+        """harm: optional {attribute: {"returns": n, "tickets": n}} already linked to this answer
+        from the company's returns and support systems. It can only raise the risk level."""
         sources = sources or []
+        harm = harm or {}
         rank, order = self._rank(text)
         answer = CheckedAnswer(
             question_id=question["id"], question=question["text"], question_kind=question["kind"],
@@ -112,7 +140,9 @@ class Checker:
             if not claim.ok:
                 claim.error_type = ERROR_TYPE[claim.attribute]
                 claim.hallucination_kind = HALLUCINATION_KIND[claim.attribute]
-                claim.severity, claim.severity_level = self._severity(claim, question["kind"], assistant)
+                claim.risk_category, claim.risk_reason = self._risk_category(claim)
+                claim.severity, claim.severity_level, claim.risk_adjustments = self._severity(
+                    claim, question["kind"], assistant, harm.get(claim.attribute))
                 claim.likely_source = self._trace(claim, sources)
             answer.claims.append(claim)
         return answer
@@ -228,12 +258,52 @@ class Checker:
                 order.append(b)
         return (order.index(self.brand) + 1 if self.brand in order else None), order
 
-    def _severity(self, claim: Claim, kind: str, assistant: str) -> tuple[int, str]:
-        score = BASE_SEVERITY[claim.attribute]
-        score += 1 if kind == "shopping" else 0            # shopper is about to buy
-        score += 1 if ASSISTANT_REACH.get(assistant, 0) >= 0.3 else 0  # lots of people see it
-        level = "high" if score >= 5 else "medium" if score >= 4 else "low"
-        return score, level
+    def _risk_category(self, claim: Claim) -> tuple[str, str]:
+        """Which kind of business harm does this wrong fact cause? The direction of the error matters:
+        a price quoted too low loses money at checkout, a price quoted too high loses the sale."""
+        a, said, truth, brand = claim.attribute, claim.said, claim.truth, self.brand
+        if a == "price":
+            if said < truth:
+                return "losing_money", f"AI quoted ${said}, {brand} charges ${truth}: shoppers arrive expecting the lower price, then abandon at checkout or demand a price match"
+            return "money_at_risk", f"AI quoted ${said}, {brand} charges ${truth}: shoppers rule {brand} out on price before they reach the site"
+        if a == "stock":
+            if truth == "in stock" and said != "in stock":
+                return "money_at_risk", f"AI says {said} but it is in stock: shoppers who would have bought go to a competitor"
+            if said == "in stock" and truth == "backorder":
+                return "losing_money", "AI says in stock but it is on backorder: orders are placed, then delayed or cancelled, with refunds and support tickets"
+            if said == "in stock":
+                return "reputation", f"AI says in stock but the product is {truth}: shoppers hunt for something {brand} does not sell and lose trust"
+            return "bad_data", f"AI says {said}, the record says {truth}: wrong availability with no direct sale attached"
+        if a in ("returns", "warranty"):
+            unit = "day" if a == "returns" else "year"
+            if said > truth:
+                return "losing_money", f"AI promised a {said} {unit} {a} policy, the real one is {truth} {unit}{'' if truth == 1 else 's'}: honored goodwill refunds, denied claims turning into disputes and chargebacks"
+            return "money_at_risk", f"AI understated the {a} policy ({said} vs {truth} {unit}s): shoppers who want the safety net buy elsewhere"
+        if a in ("exists", "comparison"):
+            what = "recommends" if a == "exists" else "compares against"
+            return "reputation", f"AI {what} {claim.product}, which {brand} does not sell ({truth}): shoppers cannot find it and blame {brand}"
+        return "bad_data", f"Wrong {ERROR_TYPE[a].lower().replace('wrong ', '')}: no money moves on its own, but shoppers decide on bad information"
+
+    def _severity(self, claim: Claim, kind: str, assistant: str, harm: dict | None) -> tuple[int, str, list[str]]:
+        """Risk level 1 to 5 from the company profile, then adjusted by evidence."""
+        p = self.risk
+        level = p["category_level"][claim.risk_category]
+        why: list[str] = []
+        if claim.risk_category == "bad_data":
+            if kind != "shopping" and p["informational_drop"]:
+                level -= p["informational_drop"]; why.append("informational question, nobody was about to buy")
+            if ASSISTANT_REACH.get(assistant, 0) < 0.3 and p["low_reach_drop"]:
+                level -= p["low_reach_drop"]; why.append("low reach assistant")
+        if harm:
+            r, t = harm.get("returns", 0), harm.get("tickets", 0)
+            if r >= p["returns_escalate_at"]:
+                if level < 5:
+                    why.append(f"{r} returns already linked to this wrong fact: money is leaving")
+                level = 5
+            elif r > 0 or t >= p["tickets_escalate_at"]:
+                level += 1; why.append(f"{r} returns and {t} support tickets linked")
+        level = max(1, min(5, level))
+        return level, p["levels"][level], why
 
     def _trace(self, claim: Claim, sources: list[str]) -> str | None:
         """Which cited page most likely taught the AI the wrong value?

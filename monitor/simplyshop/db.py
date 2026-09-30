@@ -4,7 +4,7 @@ The database. SQLite, one file (simplyshop.db), nothing to install.
 Tables:
   sweeps       one row per run: when, mode, headline metrics
   answers      one row per (sweep, question, assistant): the raw AI answer, rank, sources
-  claims       one row per fact checked: what the AI said, the truth, ok or not, severity, source
+  claims       one row per fact checked: what the AI said, the truth, ok or not, risk level and category, source
   actions      what happened about each hallucination: auto fix, approved, rejected, by whom, when
   source_pages one row per cited page: owner, last snapshot, how many hallucinations trace to it
 
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS sweeps (
   run_at TEXT NOT NULL,
   mode TEXT NOT NULL,                 -- 'demo' or 'live'
   brand TEXT NOT NULL,
-  answers INTEGER, claims INTEGER, hallucinations INTEGER, high_severity INTEGER,
+  answers INTEGER, claims INTEGER, hallucinations INTEGER, high_severity INTEGER,   -- high_severity = risk level 4 or 5
   inclusion REAL, accuracy REAL
 );
 CREATE TABLE IF NOT EXISTS answers (
@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS claims (
   said TEXT, truth TEXT, raw TEXT,
   ok INTEGER NOT NULL,                -- 1 correct, 0 hallucination
   error_type TEXT, hallucination_kind TEXT,
-  severity INTEGER, severity_level TEXT,
+  severity INTEGER, severity_level TEXT,   -- risk level 1 to 5 and its label (critical, high, moderate, low, minimal)
+  risk_category TEXT, risk_reason TEXT,    -- losing_money / money_at_risk / bad_data / reputation, and why
   likely_source TEXT
 );
 CREATE TABLE IF NOT EXISTS actions (
@@ -125,9 +126,9 @@ def save_sweep(con: sqlite3.Connection, brand: str, mode: str, run_at: str, chec
         answer_id = cur.lastrowid
         for cl in ans.claims:
             cur.execute(
-                "INSERT INTO claims(answer_id, product, attribute, said, truth, raw, ok, error_type, hallucination_kind, severity, severity_level, likely_source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO claims(answer_id, product, attribute, said, truth, raw, ok, error_type, hallucination_kind, severity, severity_level, risk_category, risk_reason, likely_source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (answer_id, cl.product, cl.attribute, str(cl.said), str(cl.truth), cl.raw, int(cl.ok), cl.error_type,
-                 cl.hallucination_kind, cl.severity, cl.severity_level, cl.likely_source),
+                 cl.hallucination_kind, cl.severity, cl.severity_level, cl.risk_category, cl.risk_reason, cl.likely_source),
             )
             if cl.ok:
                 continue
@@ -163,7 +164,7 @@ QUERIES = {
     "latest_metrics": "SELECT * FROM sweeps ORDER BY id DESC LIMIT 1",
     "trend": "SELECT run_at, inclusion, accuracy, hallucinations FROM sweeps ORDER BY id",
     "open_hallucinations": """
-        SELECT c.id, c.product, c.hallucination_kind, c.error_type, c.said, c.truth, c.severity_level, c.likely_source,
+        SELECT c.id, c.product, c.hallucination_kind, c.error_type, c.said, c.truth, c.severity, c.severity_level, c.risk_category, c.risk_reason, c.likely_source,
                a.assistant, a.question, act.action, act.mode, act.owner, act.status
         FROM claims c JOIN answers a ON a.id = c.answer_id
         LEFT JOIN actions act ON act.claim_id = c.id
@@ -183,9 +184,17 @@ QUERIES = {
         FROM case_files cf JOIN claims c ON c.id = cf.claim_id JOIN answers a ON a.id = c.answer_id
         WHERE a.sweep_id = (SELECT MAX(id) FROM sweeps) ORDER BY cf.requires_approval DESC, cf.confidence""",
     "kinds": """
-        SELECT c.hallucination_kind, COUNT(*) AS n, SUM(c.severity_level = 'high') AS high
+        SELECT c.hallucination_kind, COUNT(*) AS n, SUM(c.severity >= 4) AS high
         FROM claims c JOIN answers a ON a.id = c.answer_id
         WHERE c.ok = 0 AND a.sweep_id = (SELECT MAX(id) FROM sweeps) GROUP BY c.hallucination_kind ORDER BY n DESC""",
+    "by_risk_level": """
+        SELECT c.severity AS level, c.severity_level AS label, COUNT(*) AS n
+        FROM claims c JOIN answers a ON a.id = c.answer_id
+        WHERE c.ok = 0 AND a.sweep_id = (SELECT MAX(id) FROM sweeps) GROUP BY c.severity ORDER BY c.severity DESC""",
+    "by_risk_category": """
+        SELECT c.risk_category, COUNT(*) AS n, MAX(c.severity) AS worst
+        FROM claims c JOIN answers a ON a.id = c.answer_id
+        WHERE c.ok = 0 AND a.sweep_id = (SELECT MAX(id) FROM sweeps) GROUP BY c.risk_category ORDER BY worst DESC, n DESC""",
 }
 
 

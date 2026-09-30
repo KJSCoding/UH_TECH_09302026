@@ -234,7 +234,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
         <button class="btn primary" id="rerun">Re-run all questions</button>
       </div>
     </div>
-    <div class="notice">Demo mode: the Dell prices, specs and stock shown here are sample values, not live Dell data. "Re-run all questions" re-runs saved sample answers, not a live network sweep (the live collector is in the repo under monitor/). Competitor names are placeholders, the assistant answers are simulated sample runs, and shopper insights, conversion and trust figures are sample SimplyShop extension data. The claim checker, source tracing, severity scoring and approval rules run live in your browser. Approve fixes, then re-run the questions to see the numbers move.</div>
+    <div class="notice">Demo mode: the Dell prices, specs and stock shown here are sample values, not live Dell data. "Re-run all questions" re-runs saved sample answers, not a live network sweep (the live collector is in the repo under monitor/). Competitor names are placeholders, the assistant answers are simulated sample runs, and shopper insights, conversion and trust figures are sample SimplyShop extension data. The claim checker, source tracing, business risk scoring and approval rules run live in your browser. Approve fixes, then re-run the questions to see the numbers move.</div>
 
     <!-- OVERVIEW -->
     <section class="view" id="v-overview">
@@ -261,7 +261,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
         </div>
       </div>
       <div class="panel" style="margin-top:20px">
-        <header><div><h3>Alerts sent</h3><p>High severity errors go straight to the owner by Slack or email. Everything else rolls into a weekly digest.</p></div><span class="eyebrow" id="digest"></span></header>
+        <header><div><h3>Alerts sent</h3><p>Level 4 and 5 risks (money involved) go straight to the owner by Slack or email. Everything else rolls into a weekly digest.</p></div><span class="eyebrow" id="digest"></span></header>
         <div class="issues" id="alerts"></div>
       </div>
     </section>
@@ -340,7 +340,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
     <!-- HALLUCINATION WATCH -->
     <section class="view" id="v-truth" hidden>
       <div class="panel">
-        <header><div><h2>Hallucinations found in AI answers</h2><p>A hallucination is anything an assistant states about Dell that is not true: a wrong price, a feature the laptop does not have, stale stock, a wrong policy, a product that was retired or never existed, or a comparison against one. Every answer is split into claims and checked against the Dell product record. Each hallucination is matched to the likely cited source of the wrong claim, scored for customer harm, and routed to an action.</p></div></header>
+        <header><div><h2>Hallucinations found in AI answers</h2><p>A hallucination is anything an assistant states about Dell that is not true: a wrong price, a feature the laptop does not have, stale stock, a wrong policy, a product that was retired or never existed, or a comparison against one. Every answer is split into claims and checked against the Dell product record. Each hallucination is matched to the likely cited source of the wrong claim, scored for business risk on Dell's own scale (level 5 means money is leaving right now), and routed to an action.</p></div></header>
         <div class="tablewrap" style="margin-bottom:6px"><table id="hallucKinds"></table></div>
         <div class="issues" id="issueList"></div>
       </div>
@@ -410,14 +410,18 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
         </table></div>
       </div>
       <div class="panel" style="margin-top:20px">
+        <header><div><h3>Risk levels, in Dell's terms</h3><p>Severity is not how wrong the fact is, it is what the wrong fact costs the company. Every company sets its own profile: a retailer might put reputation at level 4, a brand selling through partners might lower it. Direction matters: a price quoted too low loses money at checkout, a price quoted too high loses the sale.</p></div><span class="eyebrow">Company profile</span></header>
+        <div class="tablewrap"><table id="riskTable"></table></div>
+      </div>
+      <div class="panel" style="margin-top:20px">
         <header><h3>Keeping oversight working at scale</h3></header>
         <div class="tablewrap"><table>
           <tr><th>Control</th><th>How it works</th><th>Target</th></tr>
-          <tr><td>Severity routing</td><td>People only see high and medium items; low items batch into a weekly digest</td><td>Under 20 items per owner per week</td></tr>
+          <tr><td>Risk routing</td><td>People are paged only for level 4 and 5 (money involved); level 3 and below batch into a weekly digest</td><td>Under 20 items per owner per week</td></tr>
           <tr><td>Checker quality</td><td>Monthly test against a hand labeled set of AI answers</td><td>Precision 0.90+, recall 0.85+</td></tr>
           <tr><td>Spot checks</td><td>A person reviews a random 5% of automatic actions</td><td>Zero wrong automatic changes</td></tr>
           <tr><td>New assistants</td><td>Each assistant is a small adapter; the checker and rules stay the same</td><td>New assistant live in under a week</td></tr>
-          <tr><td>Time to fix</td><td>Clock starts when an error is first detected</td><td>High severity fixed in 48 hours</td></tr>
+          <tr><td>Time to fix</td><td>Clock starts when an error is first detected</td><td>Level 5 fixed in 24 hours, level 4 in 48</td></tr>
         </table></div>
       </div>
       <div class="panel" style="margin-top:20px">
@@ -649,12 +653,49 @@ function rankOf(text){
   const order=[]; for(const h of hits){ if(!order.includes(h.brand)) order.push(h.brand); }
   const r=order.indexOf('Dell'); return {rank:r<0?null:r+1, order};
 }
-function severity(c,q,a){
-  const base={price:3,stock:3,returns:4,warranty:4,touch:3,ram:2,storage:2,battery:2,exists:4,comparison:3}[c.attr];
-  const intent=q.kind==='shopping'?1:0;
-  const reach=a.reach>=.3?1:0;
-  const s=base+intent+reach;
-  return {score:s, level:s>=5?'high':s>=4?'med':'low'};
+/* Business risk model (browser port of monitor/simplyshop/checker.py). Severity is not "how wrong is the fact",
+   it is "what does this wrong fact cost Dell". Each company sets its own profile: Dell's is below. A retailer
+   like Home Depot would keep losing money at 5 and might raise reputation to 4. */
+const RISK={
+  company:'Dell',
+  levels:{5:{label:'Critical',cls:'high',means:'Money is leaving right now'},4:{label:'High',cls:'high',means:'Money involved, not yet lost'},3:{label:'Moderate',cls:'med',means:'Bad data or reputation harm'},2:{label:'Low',cls:'low',means:'Doable fix, little harm'},1:{label:'Minimal',cls:'low',means:'No reputation harm, nobody buying'}},
+  category:{losing_money:5,money_at_risk:4,bad_data:3,reputation:3},
+  informationalDrop:1, lowReachDrop:1, returnsEscalateAt:5, ticketsEscalateAt:30
+};
+const CATEGORY_LABEL={losing_money:'Losing money',money_at_risk:'Money at risk',bad_data:'Bad data',reputation:'Reputation'};
+function riskCategory(c){
+  const said=c.said, truth=c.truth;
+  switch(c.attr){
+    case 'price': return said<truth?['losing_money',`AI quoted $${said}, Dell charges $${truth}: shoppers arrive expecting the lower price, then abandon at checkout or demand a price match`]
+      :['money_at_risk',`AI quoted $${said}, Dell charges $${truth}: shoppers rule Dell out on price before they reach the site`];
+    case 'stock':
+      if(truth==='in stock'&&said!=='in stock') return ['money_at_risk',`AI says ${said} but it is in stock: shoppers who would have bought go to a competitor`];
+      if(said==='in stock'&&truth==='backorder') return ['losing_money','AI says in stock but it is on backorder: orders are placed, then delayed or cancelled, with refunds and support tickets'];
+      if(said==='in stock') return ['reputation',`AI says in stock but the product is ${truth}: shoppers hunt for something Dell does not sell and lose trust`];
+      return ['bad_data',`AI says ${said}, the record says ${truth}: wrong availability with no direct sale attached`];
+    case 'returns': case 'warranty': {
+      const unit=c.attr==='returns'?'day':'year';
+      return said>truth?['losing_money',`AI promised a ${said} ${unit} ${c.attr} policy, the real one is ${truth} ${unit}${truth===1?'':'s'}: honored goodwill refunds, denied claims turning into disputes and chargebacks`]
+        :['money_at_risk',`AI understated the ${c.attr} policy (${said} vs ${truth} ${unit}s): shoppers who want the safety net buy elsewhere`];
+    }
+    case 'exists': case 'comparison': return ['reputation',`AI ${c.attr==='exists'?'recommends':'compares against'} ${c.product}, which Dell does not sell (${truth}): shoppers cannot find it and blame Dell`];
+    default: return ['bad_data',`Wrong ${TYPE[c.attr].toLowerCase().replace('wrong ','').replace('made up or missing ','')}: no money moves on its own, but shoppers decide on bad information`];
+  }
+}
+function severity(c,q,a,harm){
+  const [category,reason]=riskCategory(c);
+  let lvl=RISK.category[category]; const adj=[];
+  if(category==='bad_data'){
+    if(q.kind!=='shopping'&&RISK.informationalDrop){lvl-=RISK.informationalDrop; adj.push('informational question, nobody was about to buy');}
+    if(a.reach<.3&&RISK.lowReachDrop){lvl-=RISK.lowReachDrop; adj.push('low reach assistant');}
+  }
+  if(harm){
+    if(harm.returns>=RISK.returnsEscalateAt){ if(lvl<5) adj.push(harm.returns+' returns already linked to this wrong fact: money is leaving'); lvl=5; }
+    else if(harm.returns>0||harm.tickets>=RISK.ticketsEscalateAt){ lvl+=1; adj.push(harm.returns+' returns and '+harm.tickets+' support tickets linked'); }
+  }
+  lvl=Math.max(1,Math.min(5,lvl));
+  const L=RISK.levels[lvl];
+  return {score:lvl, lvl, level:L.cls, label:L.label, category, reason, adj};
 }
 /* Investigator agent (browser port of monitor/simplyshop/agent.py). Tools: lookup fact, inspect sources, classify cause, draft correction. */
 function investigate(i){
@@ -714,8 +755,8 @@ function runSweep(){
     const {rank,order}=rankOf(text);
     const claims=extractClaims(text).map(c=>{
       if(c.ok) return c;
-      const origin=traceOrigin(c,ans.src); const sev=severity(c,q,a); const act=routeAction(c,origin);
-      return {...c,origin,sev,act,issueId:ans.id+'|'+c.attr};
+      const issueId=ans.id+'|'+c.attr; const origin=traceOrigin(c,ans.src); const sev=severity(c,q,a,HARM[issueId]); const act=routeAction(c,origin);
+      return {...c,origin,sev,act,issueId};
     });
     return {...ans,text,q,a,rank,order,claims};
   });
@@ -729,7 +770,7 @@ function runSweep(){
   for(const id of Object.keys(state.detected)) if(!live.has(id) && !state.resolved.find(r=>r.id===id)) state.resolved.push({id,hours:(state.sweep-state.detected[id])*24});
   for(const i of openIssues()) if(!(i.issueId in state.detected)){
     state.detected[i.issueId]=state.sweep;
-    if(i.sev.level==='high') addLog('SimplyShop','Alert sent to '+i.act.owner+' by Slack: '+TYPE[i.attr]+', '+i.product+' on '+i.r.a.name);
+    if(i.sev.lvl>=4) addLog('SimplyShop','Alert sent to '+i.act.owner+' by Slack: level '+i.sev.lvl+' '+i.sev.label.toLowerCase()+', '+TYPE[i.attr]+', '+i.product+' on '+i.r.a.name);
   }
   state.prev=state.metrics; state.metrics=computeMetrics();
   if(state.exposure0===null) state.exposure0=state.metrics.exposure;
@@ -743,12 +784,13 @@ function computeMetrics(){
   const acc=claims.filter(c=>c.ok).length/claims.length;
   const issues=openIssues();
   const waiting=issues.filter(i=>!i.act.auto && !state.decisions[i.issueId]).length + GAPS.filter(g=>!state.gapDecisions[g.id]).length;
-  const exposure=issues.reduce((s,i)=>s+COST[i.sev.level],0);
+  const exposure=issues.reduce((s,i)=>s+COST[i.sev.lvl],0);
   const hrs=state.resolved.map(r=>r.hours).sort((a,b)=>a-b);
   const ttf=hrs.length?hrs[Math.floor((hrs.length-1)/2)]:null;
-  return {incl,avgRank,acc,claims:claims.length,errors:issues.length,high:issues.filter(i=>i.sev.level==='high').length,waiting,exposure,ttf};
+  return {incl,avgRank,acc,claims:claims.length,errors:issues.length,high:issues.filter(i=>i.sev.lvl>=4).length,waiting,exposure,ttf};
 }
-const COST={high:5200,med:1800,low:450};
+/* Estimated weekly cost of one live wrong fact, by risk level. Finance edits these per company. */
+const COST={5:5200,4:3200,3:1800,2:800,1:250};
 /* Sample: returns and support tickets whose stated reason matches a live hallucination (last 30 days).
    In production these come from the brand's returns and support systems, matched on product + reason + date. */
 const HARM={
@@ -800,7 +842,7 @@ function renderKpis(){
   $('#kpis').innerHTML=`
    <div class="kpi"><span class="eyebrow">AI inclusion</span><span class="v">${pct(m.incl)}</span>${delta(m,p,'incl')}<span class="d">of shopping answers mention Dell</span></div>
    <div class="kpi"><span class="eyebrow">Fact accuracy</span><span class="v">${pct(m.acc)}</span>${delta(m,p,'acc')}<span class="d">${m.claims} claims checked</span></div>
-   <div class="kpi"><span class="eyebrow">Hallucinations live</span><span class="v">${m.errors}</span>${delta(m,p,'errors','down',false)}<span class="d">${m.high} high severity · ${state.resolved.length} caught and fixed</span></div>
+   <div class="kpi"><span class="eyebrow">Hallucinations live</span><span class="v">${m.errors}</span>${delta(m,p,'errors','down',false)}<span class="d">${m.high} critical or high risk · ${state.resolved.length} caught and fixed</span></div>
    <div class="kpi"><span class="eyebrow">Avg position</span><span class="v">#${m.avgRank.toFixed(1)}</span>${delta(m,p,'avgRank','down',false)}<span class="d">when Dell is mentioned</span></div>
    <div class="kpi"><span class="eyebrow">Time to fix</span><span class="v">${m.ttf===null?'None yet':m.ttf+' hr'}</span><span class="d">${state.resolved.length} wrong facts fixed so far</span><span class="d">median, detection to gone</span></div>
    <div class="kpi"><span class="eyebrow">Win rate vs. competitors</span><span class="v">${pct(EXT.win)}</span><span class="d">of ${EXT.compared.toLocaleString('en-US')} shoppers who compared</span><span class="src">Extension sample</span></div>
@@ -847,17 +889,17 @@ function issueCard(i,compact){
     : `<span class="chip med">Waiting on ${esc(i.act.owner)}</span>`;
   const origin=i.origin?SOURCES[i.origin]:null;
   return `<div class="issue ${i.sev.level}">
-    <div class="top"><span class="chip ${i.sev.level}">${i.sev.level==='high'?'High':i.sev.level==='med'?'Medium':'Low'} · ${i.sev.score}</span><b>${esc(TYPE[i.attr])}</b><span style="color:var(--muted)">${esc(i.product)} on ${esc(i.r.a.name)}</span></div>
+    <div class="top"><span class="chip ${i.sev.level}">Level ${i.sev.lvl} ${i.sev.label}</span><span class="chip low">${CATEGORY_LABEL[i.sev.category]}</span><b>${esc(TYPE[i.attr])}</b><span style="color:var(--muted)">${esc(i.product)} on ${esc(i.r.a.name)}</span></div>
     <div class="said">${i.attr==='exists'||i.attr==='comparison'?`AI treated <s>${esc(i.product)}</s> as a current product · truth: <ins>${esc(i.truth)}</ins>`:`AI said <s>${esc(fmt[i.attr](i.said))}</s> · truth is <ins>${esc(fmt[i.attr](i.truth))}</ins>`}
-      ${compact?'':`<div class="meta" style="margin-top:6px"><span>Question: ${esc(i.r.q.text)}</span></div>`}</div>
+      ${compact?'':`<div class="meta" style="margin-top:6px"><span>Question: ${esc(i.r.q.text)}</span></div><div class="meta" style="margin-top:4px"><span>Business risk: ${esc(i.sev.reason)}${i.sev.adj.length?' · '+esc(i.sev.adj.join('; ')):''}</span></div>`}</div>
     <div class="meta"><span>Likely cited source: <b style="color:var(--ink);font-weight:500">${origin?esc(origin.name):'Not in cited sources'}</b>${origin?' ('+esc(origin.updated)+')':''}</span>
       ${compact?'':`<span>Action: ${esc(i.act.text)}</span>`}<span>${status}</span></div>
   </div>`;
 }
 function renderIssues(){
   const list=openIssues();
-  const kinds={}; for(const i of list){ const k=KIND[i.attr]; kinds[k]=kinds[k]||{n:0,high:0}; kinds[k].n++; if(i.sev.level==='high') kinds[k].high++; }
-  $('#hallucKinds').innerHTML='<tr><th>Kind of hallucination (case prompt wording)</th><th class="c">Live now</th><th class="c">High severity</th></tr>'+
+  const kinds={}; for(const i of list){ const k=KIND[i.attr]; kinds[k]=kinds[k]||{n:0,high:0}; kinds[k].n++; if(i.sev.lvl>=4) kinds[k].high++; }
+  $('#hallucKinds').innerHTML='<tr><th>Kind of hallucination (case prompt wording)</th><th class="c">Live now</th><th class="c">Critical or high risk</th></tr>'+
     ['Incorrect pricing','Incorrect availability','Incorrect feature','Incorrect policy','Fabricated product','Misleading comparison'].map(k=>`<tr><td>${k}</td><td class="c num">${kinds[k]?kinds[k].n:0}</td><td class="c num">${kinds[k]?kinds[k].high:0}</td></tr>`).join('');
   $('#topIssues').innerHTML=list.length?list.slice(0,3).map(i=>issueCard(i,true)).join(''):'<div class="empty">No wrong facts in the latest sweep.</div>';
   $('#issueList').innerHTML=list.length?list.map(i=>issueCard(i,false)).join(''):'<div class="empty">Every checked claim matches the product record.</div>';
@@ -920,9 +962,9 @@ function renderQueue(){
 function bars(el,rows,fmtv=pct,rival=false){ $(el).innerHTML=rows.map(([k,v])=>`<div class="bar"><span>${esc(k)}</span><div class="track"><div class="fill ${rival?'rival':''}" style="width:${Math.min(100,v*100/Math.max(...rows.map(r=>r[1])))}%"></div></div><span class="num">${fmtv(v)}</span></div>`).join(''); }
 function stat(label,v,d){return `<div class="panel stat"><span class="eyebrow">${label}</span><span class="v">${v}</span><span class="d">${d}</span></div>`;}
 function renderAlerts(){
-  const hi=openIssues().filter(i=>i.sev.level==='high'); const low=openIssues().filter(i=>i.sev.level!=='high').length;
-  $('#digest').textContent=low+' lower severity items in this week\'s digest';
-  $('#alerts').innerHTML=hi.length?hi.map(i=>`<div class="alert"><i class="dot"></i><div><b>${esc(TYPE[i.attr])}: ${esc(i.product)} on ${esc(i.r.a.name)}</b><br><span>AI said ${esc(fmt[i.attr](i.said))}, truth is ${esc(fmt[i.attr](i.truth))} · sent to ${esc(i.act.owner)} by Slack and email at detection</span></div></div>`).join(''):'<div class="empty">No high severity errors live. Nothing needs an alert right now.</div>';
+  const hi=openIssues().filter(i=>i.sev.lvl>=4); const low=openIssues().filter(i=>i.sev.lvl<4).length;
+  $('#digest').textContent=low+' level 3 and below items in this week\'s digest';
+  $('#alerts').innerHTML=hi.length?hi.map(i=>`<div class="alert"><i class="dot"></i><div><b>Level ${i.sev.lvl} ${esc(i.sev.label)} · ${esc(CATEGORY_LABEL[i.sev.category])} · ${esc(TYPE[i.attr])}: ${esc(i.product)} on ${esc(i.r.a.name)}</b><br><span>AI said ${esc(fmt[i.attr](i.said))}, truth is ${esc(fmt[i.attr](i.truth))} · sent to ${esc(i.act.owner)} by Slack and email at detection</span></div></div>`).join(''):'<div class="empty">No level 4 or 5 risks live. Nothing needs an alert right now.</div>';
 }
 function renderChanges(){
   const rows=[...CHANGES_HIST.map(c=>({...c,sample:true})),...state.changes];
@@ -948,21 +990,32 @@ function renderImpact(){
   let R=0,T=0;
   const rows=live.map(i=>{const h=HARM[i.issueId]||{returns:0,tickets:0,note:''}; R+=h.returns; T+=h.tickets; return {i,h,cost:h.returns*RETURN_COST+h.tickets*TICKET_COST};}).sort((x,y)=>y.cost-x.cost);
   $('#harmTable').innerHTML='<tr><th>Hallucination</th><th>Assistant</th><th class="c">Returns</th><th class="c">Tickets</th><th class="c">Cost (30 days)</th><th>What customers said</th></tr>'+
-    rows.map(({i,h,cost})=>`<tr><td><span class="chip ${i.sev.level}">${i.sev.level==='high'?'High':i.sev.level==='med'?'Med':'Low'}</span> ${esc(KIND[i.attr])}: ${esc(i.product)}</td><td>${esc(i.r.a.name)}</td><td class="c num">${h.returns}</td><td class="c num">${h.tickets}</td><td class="c num">${money(cost)}</td><td style="color:var(--muted);font-size:.84rem">${esc(h.note)}</td></tr>`).join('')+
+    rows.map(({i,h,cost})=>`<tr><td><span class="chip ${i.sev.level}">L${i.sev.lvl} ${i.sev.label}</span> ${esc(KIND[i.attr])}: ${esc(i.product)}</td><td>${esc(i.r.a.name)}</td><td class="c num">${h.returns}</td><td class="c num">${h.tickets}</td><td class="c num">${money(cost)}</td><td style="color:var(--muted);font-size:.84rem">${esc(h.note)}</td></tr>`).join('')+
     `<tr><td><b>Total, live hallucinations</b></td><td></td><td class="c num"><b>${R}</b></td><td class="c num"><b>${T}</b></td><td class="c num"><b>${money(R*RETURN_COST+T*TICKET_COST)}</b></td><td style="color:var(--muted);font-size:.84rem">Returns at $${RETURN_COST} each (shipping, restock, refund handling), tickets at $${TICKET_COST} each. Matched on product, reason and date.</td></tr>`;
   $('#impactStats').innerHTML=stat('Weekly cost of wrong facts live',money(m.exposure),m.errors+' wrong facts still in AI answers')+
     stat('Saved since first sweep',money(saved)+' / wk','from wrong facts that stopped appearing')+
     stat('Checks shoppers flagged as wrong info',EXT.flagged.toLocaleString('en-US'),'last 30 days, from the extension');
-  const by=l=>openIssues().filter(i=>i.sev.level===l).length;
-  $('#costTable').innerHTML='<tr><th>Severity</th><th class="c">Live now</th><th class="c">Cost each per week</th><th class="c">Total per week</th></tr>'+
-    ['high','med','low'].map(l=>`<tr><td><span class="chip ${l}">${l==='high'?'High':l==='med'?'Medium':'Low'}</span></td><td class="c num">${by(l)}</td><td class="c num">${money(COST[l])}</td><td class="c num">${money(by(l)*COST[l])}</td></tr>`).join('')+
-    '<tr><td colspan="4" style="color:var(--muted);font-size:.82rem">Assumptions: returns caused by wrong info at about $85 each in shipping and restocking, support contacts at about $12 each, and lost sales when a shopper walks away. Finance can edit these per company.</td></tr>';
+  const by=l=>openIssues().filter(i=>i.sev.lvl===l).length;
+  $('#costTable').innerHTML='<tr><th>Risk level</th><th>Means</th><th class="c">Live now</th><th class="c">Cost each per week</th><th class="c">Total per week</th></tr>'+
+    [5,4,3,2,1].map(l=>`<tr><td><span class="chip ${RISK.levels[l].cls}">Level ${l} ${RISK.levels[l].label}</span></td><td style="color:var(--muted);font-size:.84rem">${RISK.levels[l].means}</td><td class="c num">${by(l)}</td><td class="c num">${money(COST[l])}</td><td class="c num">${money(by(l)*COST[l])}</td></tr>`).join('')+
+    '<tr><td colspan="5" style="color:var(--muted);font-size:.82rem">Assumptions: returns caused by wrong info at about $85 each in shipping and restocking, support contacts at about $12 each, and lost sales when a shopper walks away. Finance can edit these per company.</td></tr>';
   $('#trust').innerHTML=`<div class="stat"><span class="v">${EXT.trust} / 5</span><span class="d">from ${EXT.ratings.toLocaleString('en-US')} shopper ratings · Extension sample</span></div>
     <div class="bars" style="margin-top:12px">${[['Found the price correct',.93],['Found the deal useful',.81],['Would use it again',.88]].map(([k,v])=>`<div class="bar"><span style="font-size:.82rem">${k}</span><div class="track"><div class="fill" style="width:${v*100}%"></div></div><span class="num">${pct(v)}</span></div>`).join('')}</div>`;
   $('#deals').innerHTML='<tr><th>Partner deal</th><th class="c">Views</th><th class="c">Clicks</th><th class="c">Purchases</th><th class="c">Conversion</th></tr>'+
     DEALS.map(d=>`<tr><td>${esc(d[0])} <span class="chip low">Partner deal</span></td><td class="c num">${d[1].toLocaleString('en-US')}</td><td class="c num">${d[2]}</td><td class="c num">${d[3]}</td><td class="c num">${(d[3]/d[2]*100).toFixed(1)}%</td></tr>`).join('');
 }
-function renderAll(){renderKpis();renderTrend();renderByAssistant();renderIssues();renderGrid();renderSources();renderQueue();renderAlerts();renderChanges();renderInsights();renderImpact();}
+function renderRisk(){
+  const ex={losing_money:'Price quoted below what Dell charges, "in stock" on a backordered product, a return or warranty promise longer than the real policy, or any wrong fact with 5 or more returns already linked to it',
+    money_at_risk:'Price quoted above what Dell charges, "sold out" on a product that is in stock, a policy understated so shoppers buy elsewhere',
+    bad_data:'Wrong RAM, storage, battery or touchscreen. Drops a level on informational questions and low reach assistants; rises when returns or tickets are linked',
+    reputation:'A retired or made up Dell product recommended or compared as current. Never drops: it always hurts trust'};
+  const cats=Object.keys(RISK.category).sort((x,y)=>RISK.category[y]-RISK.category[x]);
+  const by=k=>openIssues().filter(i=>i.sev.category===k).length;
+  $('#riskTable').innerHTML='<tr><th>Category</th><th>Default level for Dell</th><th>Examples</th><th class="c">Live now</th><th>Who is paged</th></tr>'+
+    cats.map(k=>{const l=RISK.category[k]; return `<tr><td><b>${CATEGORY_LABEL[k]}</b></td><td><span class="chip ${RISK.levels[l].cls}">Level ${l} ${RISK.levels[l].label}</span><br><span style="color:var(--muted);font-size:.82rem">${RISK.levels[l].means}</span></td><td style="font-size:.86rem">${ex[k]}</td><td class="c num">${by(k)}</td><td style="font-size:.86rem">${l>=4?'Owner now, by Slack and email':'Weekly digest'}</td></tr>`;}).join('')+
+    `<tr><td colspan="5" style="color:var(--muted);font-size:.82rem">Adjustments: level 1 and 2 are reached only by bad data that hurts no one yet (informational question, low reach assistant). ${RISK.returnsEscalateAt}+ linked returns in 30 days moves anything to level 5; any return or ${RISK.ticketsEscalateAt}+ tickets moves it up one. The same profile drives monitor/simplyshop/checker.py through data/products.json.</td></tr>`;
+}
+function renderAll(){renderKpis();renderTrend();renderByAssistant();renderIssues();renderGrid();renderSources();renderQueue();renderAlerts();renderChanges();renderInsights();renderImpact();renderRisk();}
 
 /* ===================== Try it ===================== */
 function runTry(){
@@ -1015,14 +1068,15 @@ const TOUR=[
   {view:'overview',sel:'#trend',title:'Is it getting better?',body:'Inclusion and accuracy over time. Every time Dell fixes something and the questions are re-run, a new point lands here.'},
   {view:'visibility',sel:'#grid',title:'Every question, every assistant',body:'Each cell is one AI answer. A number is Dell\'s position in it. Red means the answer mentions Dell but gets a fact wrong. Click any cell to read it with the claims marked.'},
   {view:'truth',sel:'#hallucKinds',title:'Hallucination Watch',body:'Every wrong claim, grouped the way the case prompt describes them: pricing, availability, features, policies, fabricated products and misleading comparisons.'},
-  {view:'truth',sel:'#issueList',title:'Each one, with a cause and an owner',body:'What the AI said, the truth, how bad it is for a shopper, the likely cited source, and who is responsible for the fix.'},
+  {view:'truth',sel:'#issueList',title:'Each one, with a risk level, a cause and an owner',body:'What the AI said, the truth, and the business risk in Dell\'s own terms: level 5 means money is leaving right now, level 4 means money is involved, level 3 is bad data or reputation, 1 and 2 hurt nobody yet. Then the likely cited source and who owns the fix.'},
   {view:'sources',sel:'#srcTable',title:'Fix the cause, not the symptom',body:'The pages the assistants cite, ranked by how many hallucinations trace back to them. One stale retailer listing can be wrong in five assistants at once.'},
   {view:'approvals',sel:'#queue',title:'The agent did the legwork',body:'For every hallucination, the investigator agent looked up the approved fact, checked each cited source, named the likely cause and drafted the correction. The owner reads the brief and clicks Approve draft. The agent drafts, a person publishes. Try approving one or two.'},
   {view:'overview',sel:'#rerun',title:'Close the loop',body:'Now click Re-run all questions. In demo mode this re-runs the saved sample answers with the approved fixes applied, and the numbers move.'},
   {view:'changes',sel:'#changeTable',title:'Did it help?',body:'Every change Dell made, with inclusion and accuracy before and after. Your re-run just added a live row at the top.'},
   {view:'impact',sel:'#harmTable',title:'What it costs',body:'Returns and support tickets matched to each live hallucination, with what customers said. Accuracy has a dollar value.'},
   {view:'insights',sel:'#lossReasons',title:'Why shoppers chose someone else',body:'From opted in shoppers, totals only, never a chat. This is the customer discovery data Dell cannot get anywhere else.'},
-  {view:'governance',sel:'.tier',title:'Who can do what',body:'Automatic, needs a person, never allowed. Plus owners, scale controls, what Dell can and cannot see, and the plans. That is the ethics and governance piece.'}
+  {view:'governance',sel:'.tier',title:'Who can do what',body:'Automatic, needs a person, never allowed. Plus owners, scale controls, what Dell can and cannot see, and the plans. That is the ethics and governance piece.'},
+  {view:'governance',sel:'#riskTable',title:'Risk on the company\'s own scale',body:'Severity is set by what a wrong fact costs the company, not by how wrong it is. Each company keeps its own profile: Dell puts losing money at 5 and reputation at 3, a retailer might put reputation at 4. Direction matters too: a price quoted too low loses money at checkout, too high loses the sale.'}
 ];
 let tourI=-1, tourEls=null;
 function tourEnd(){ const cue=$('#guideCue'); if(cue) cue.hidden=false; $('#tourBtn').classList.add('glow'); document.querySelectorAll('.tour-spot').forEach(e=>e.classList.remove('tour-spot')); if(tourEls){tourEls.card.remove();tourEls.arrow.remove();tourEls=null;} tourI=-1; $('#tourBtn').textContent='Guide me through'; }

@@ -1,0 +1,63 @@
+{
+  "_note": "Returns and support tickets whose stated reason matches a live hallucination (last 30 days). In production these come from the company's returns and support systems. Keyed <question>_<assistant>|<attribute>.",
+  "q1_chatgpt|price": {
+    "returns": 11,
+    "tickets": 38,
+    "note": "Website price was higher than the AI said"
+  },
+  "q5_chatgpt|stock": {
+    "returns": 0,
+    "tickets": 52,
+    "note": "AI said in stock, order went to backorder"
+  },
+  "q6_chatgpt|returns": {
+    "returns": 9,
+    "tickets": 44,
+    "note": "Thought I had 14 days, tried to return on day 20"
+  },
+  "q1_copilot|touchscreen": {
+    "returns": 23,
+    "tickets": 17,
+    "note": "Bought for the touchscreen, it does not have one"
+  },
+  "q6_copilot|warranty": {
+    "returns": 2,
+    "tickets": 31,
+    "note": "Was told 2 year warranty, claim denied in year 2"
+  },
+  "q8_claude|stock": {
+    "returns": 0,
+    "tickets": 19,
+    "note": "Could not find the Chromebook 3110 anywhere"
+  },
+  "q7_copilot|exists": {
+    "returns": 0,
+    "tickets": 14,
+    "note": "Looked for the Inspiron 3000, it is not sold anymore"
+  },
+  "q5_claude|exists": {
+    "returns": 0,
+    "tickets": 9,
+    "note": "Asked about Inspiron 3000 battery, rep said discontinued"
+  },
+  "q3_copilot|ram_gb": {
+    "returns": 6,
+    "tickets": 12,
+    "note": "Expected 8GB, AI said 4GB, bought a competitor instead"
+  },
+  "q2_perplexity|battery_hours": {
+    "returns": 4,
+    "tickets": 8,
+    "note": "Battery lasts 10 hours not 12"
+  },
+  "q4_gemini|touchscreen": {
+    "returns": 0,
+    "tickets": 15,
+    "note": "AI said no touchscreen, almost did not buy"
+  },
+  "q3_perplexity|stock": {
+    "returns": 0,
+    "tickets": 6,
+    "note": "AI said sold out, it was in stock"
+  }
+}

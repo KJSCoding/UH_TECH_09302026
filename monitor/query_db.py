@@ -49,10 +49,16 @@ def main() -> None:
 
     m = data["latest_metrics"]
     print(f"Latest sweep #{m['id']} ({m['mode']}, {m['run_at']}) for {m['brand']}")
-    print(f"  inclusion {m['inclusion']:.0%}   accuracy {m['accuracy']:.0%}   hallucinations {m['hallucinations']} ({m['high_severity']} high)")
+    print(f"  inclusion {m['inclusion']:.0%}   accuracy {m['accuracy']:.0%}   hallucinations {m['hallucinations']} ({m['high_severity']} critical or high risk)")
     print("\n  Hallucinations by kind (SQL GROUP BY):")
     for r in data["kinds"]:
-        print(f"    {r['hallucination_kind']:22s} {r['n']:2d}   high: {r['high']}")
+        print(f"    {r['hallucination_kind']:22s} {r['n']:2d}   critical or high: {r['high']}")
+    print("\n  Business risk level (5 = losing money now):")
+    for r in data["by_risk_level"]:
+        print(f"    level {r['level']} {r['label']:9s} {r['n']:2d}")
+    print("\n  Risk category:")
+    for r in data["by_risk_category"]:
+        print(f"    {r['risk_category'].replace('_', ' '):14s} {r['n']:2d}   worst level {r['worst']}")
     print("\n  Approval queue (needs a person):")
     for r in data["approval_queue"]:
         print(f"    [{r['owner']}] {r['action'][:80]}")

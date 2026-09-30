@@ -8,7 +8,7 @@ SimplyShop monitor: one "sweep".
 A sweep does four things:
 1. Ask each AI assistant every question in data/questions.json (or load the saved sample answers).
 2. Check every answer against data/products.json with the claim checker.
-3. Print a short report: inclusion rate, accuracy, the hallucinations, and the pages causing them.
+3. Print a short report: inclusion rate, accuracy, the hallucinations by business risk level, and the pages causing them.
 4. Save everything to the SQLite database (simplyshop.db) and a JSON copy in output/.
 
 In production this runs on a schedule (cron or GitHub Actions) a few times a day.
@@ -76,8 +76,16 @@ def main() -> None:
         print("Demo mode: using data/sample_answers.json (run with --live to query the real assistants)")
 
     snapshots = load("source_snapshots.json")
+    # Returns and support tickets already linked to a wrong fact (from the company's own systems).
+    # Keyed "<question>_<assistant>|<attribute>". Evidence of money leaving raises the risk level.
+    harm = load("linked_harm.json") if (DATA / "linked_harm.json").exists() else {}
     checker = Checker(record, snapshots)
-    checked = [checker.check(by_id[a["q"]], a["assistant"], a["text"], a.get("sources")) for a in answers]
+
+    def harm_for(a):
+        px = f"{a['q']}_{a['assistant']}|"
+        return {k[len(px):]: v for k, v in harm.items() if k.startswith(px)}
+
+    checked = [checker.check(by_id[a["q"]], a["assistant"], a["text"], a.get("sources"), harm_for(a)) for a in answers]
 
     # ---------- investigator agent: one case file per hallucination ----------
     case_files = {}
@@ -105,16 +113,25 @@ def main() -> None:
     print(f"SimplyShop sweep for {brand}  ({len(checked)} answers, {len(claims)} claims checked)")
     print(f"  Inclusion in shopping answers: {inclusion:.0%}")
     print(f"  Fact accuracy:                 {accuracy:.0%}")
-    print(f"  Hallucinations live:           {len(errors)}  ({sum(1 for _, cl in errors if cl.severity_level == 'high')} high severity)")
+    print(f"  Hallucinations live:           {len(errors)}  ({sum(1 for _, cl in errors if cl.severity >= 4)} critical or high risk)")
+    print()
+    print("  Business risk (company profile, 5 = losing money now):")
+    for lvl in (5, 4, 3, 2, 1):
+        n = sum(1 for _, cl in errors if cl.severity == lvl)
+        if n:
+            print(f"    level {lvl} {checker.risk['levels'][lvl]:9s} {n}")
+    by_cat = Counter(cl.risk_category for _, cl in errors)
+    print("  By category: " + ", ".join(f"{k.replace('_', ' ')} {v}" for k, v in by_cat.most_common()))
     print()
     print("  Inclusion by assistant:")
     for name, v in by_assistant.items():
         print(f"    {name:11s} {v:.0%}")
     print()
-    print("  Hallucinations (most severe first):")
+    print("  Hallucinations (highest risk first):")
     for c, cl in errors:
         src = f"  <- {cl.likely_source}" if cl.likely_source else ""
-        print(f"    [{cl.severity_level:6s}] {cl.error_type:26s} {cl.product} on {c.assistant}: said {cl.said!r}, truth {cl.truth!r}{src}")
+        adj = f"  [{'; '.join(cl.risk_adjustments)}]" if cl.risk_adjustments else ""
+        print(f"    [L{cl.severity} {cl.severity_level:8s}] {cl.risk_category.replace('_', ' '):13s} {cl.error_type:26s} {cl.product} on {c.assistant}: said {cl.said!r}, truth {cl.truth!r}{src}{adj}")
     if case_files:
         print()
         drv = next(iter(case_files.values())).driver
@@ -133,7 +150,7 @@ def main() -> None:
     # ---------- save ----------
     OUT.mkdir(exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    metrics_for_db = {"claims": len(claims), "errors": len(errors), "high": sum(1 for _, cl in errors if cl.severity_level == "high"),
+    metrics_for_db = {"claims": len(claims), "errors": len(errors), "high": sum(1 for _, cl in errors if cl.severity >= 4),
                       "inclusion": inclusion, "accuracy": accuracy}
     con = connect(DB)
     sweep_id = save_sweep(con, brand, "live" if args.live else "demo", stamp, checked, metrics_for_db, snapshots, case_files, record.get("brand_owned_sources", []))

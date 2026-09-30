@@ -44,7 +44,32 @@ def test_rank_and_severity():
     a = checker.check(Q, "chatgpt", "1. Kestrel Lite 14. 2. Dell 14 for $399.")
     assert a.brand_rank == 2
     err = a.errors[0]
-    assert err.severity_level == "high"  # price + shopping question + high reach assistant
+    assert err.risk_category == "losing_money" and err.severity == 5 and err.severity_level == "critical"  # price quoted below what Dell charges
+
+
+def test_risk_direction_and_profile():
+    """Same wrong attribute, different business risk depending on direction."""
+    hi = checker.check(Q, "chatgpt", "The Dell 14 costs $499.").errors[0]       # quoted too high: lost sale
+    assert hi.risk_category == "money_at_risk" and hi.severity == 4
+    over = checker.check(Q, "chatgpt", "Dell offers a 45 day return policy.").errors[0]   # promised more than policy
+    assert over.risk_category == "losing_money" and over.severity == 5
+    spec = checker.check(Q, "chatgpt", "The Dell 14 has 16GB RAM.").errors[0]  # bad data on a shopping question
+    assert spec.risk_category == "bad_data" and spec.severity == 3
+    info = checker.check({"id": "i", "text": "t", "kind": "informational"}, "perplexity", "The Dell 14 has 16GB RAM.").errors[0]
+    assert info.severity == 1 and info.severity_level == "minimal"            # informational, low reach, no reputation harm
+    ghost = checker.check(Q, "chatgpt", "Try the Dell Latitude 5400.").errors[0]
+    assert ghost.risk_category == "reputation" and ghost.severity == 3
+
+
+def test_linked_returns_escalate_risk():
+    spec = checker.check(Q, "copilot", "The Dell 14 has a touchscreen.", harm={"touchscreen": {"returns": 23, "tickets": 17}}).errors[0]
+    assert spec.severity == 5 and any("23 returns" in a for a in spec.risk_adjustments)
+
+
+def test_company_profile_changes_levels():
+    strict = Checker({**record, "risk_profile": {"category_level": {"reputation": 4, "bad_data": 2}}})
+    assert strict.check(Q, "chatgpt", "Try the Dell Latitude 5400.").errors[0].severity == 4
+    assert strict.check(Q, "chatgpt", "The Dell 14 has 16GB RAM.").errors[0].severity == 2
 
 
 def test_structured_price_parser():

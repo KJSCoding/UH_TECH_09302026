@@ -84,5 +84,18 @@
     "https://www.dell.com/",
     "https://feeds.example/dell-retail-feed"
   ],
-  "_brand_owned_note": "Pages and feeds the brand controls. Errors traced to these can be fixed by resync (automatic when the fix only copies an approved price or stock value)."
+  "_brand_owned_note": "Pages and feeds the brand controls. Errors traced to these can be fixed by resync (automatic when the fix only copies an approved price or stock value).",
+  "risk_profile": {
+    "_note": "Business risk model. Each company sets what a category is worth. 5 = losing money right now. Levels: 5 critical, 4 high, 3 moderate, 2 low, 1 minimal.",
+    "category_level": {
+      "losing_money": 5,
+      "money_at_risk": 4,
+      "bad_data": 3,
+      "reputation": 3
+    },
+    "informational_drop": 1,
+    "low_reach_drop": 1,
+    "tickets_escalate_at": 30,
+    "returns_escalate_at": 5
+  }
 }
