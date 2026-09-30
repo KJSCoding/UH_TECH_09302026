@@ -165,6 +165,16 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
   .grid2,.tier,.grid3,.plans{grid-template-columns:minmax(0,1fr)}
   .issue{grid-template-columns:minmax(0,1fr)}
 }
+/* Agent brief */
+.brief{margin-top:8px;border:1px dashed var(--line);border-radius:8px;padding:10px 12px;font-size:.84rem;display:flex;flex-direction:column;gap:6px;background:var(--sunken)}
+.brief .who{display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ink)}
+.brief .who .chip{margin-left:auto}
+.brief dl{display:grid;grid-template-columns:110px minmax(0,1fr);gap:3px 10px;margin:0}
+.brief dt{color:var(--muted)} .brief dd{margin:0}
+.brief .draft{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 10px;white-space:pre-wrap;font-size:.82rem}
+.brief .steps{font-family:var(--f-mono);font-size:.72rem;color:var(--muted)}
+.brief details summary{cursor:pointer;color:var(--accent);font-weight:500}
+.qitem .txt{flex-basis:100%}
 /* Guided tour */
 .tour-spot{position:relative;z-index:1002;box-shadow:0 0 0 4px var(--accent),0 0 0 9999px rgba(10,14,22,.55);border-radius:10px}
 .tour-card{position:fixed;z-index:1003;max-width:360px;width:calc(100% - 32px);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:0 18px 50px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:10px}
@@ -339,7 +349,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
     <!-- APPROVALS -->
     <section class="view" id="v-approvals" hidden>
       <div class="panel">
-        <header><div><h2>Waiting on a person</h2><p>Anything that publishes new customer facing content, contacts an outside company, or touches policy or legal wording needs a named owner to approve it first.</p></div></header>
+        <header><div><h2>Waiting on a person</h2><p>Anything that publishes new customer facing content, contacts an outside company, or touches policy or legal wording needs a named owner to approve it first. The investigator agent has already done the legwork on each one: it looked up the approved fact, checked every cited source, named the likely cause and drafted the correction. The owner reads the brief and decides. The agent drafts, a person publishes.</p></div><span class="chip auto">Agent briefs: rule driven in demo, LLM driven with a key</span></header>
         <div class="queue" id="queue"></div>
       </div>
       <div class="panel" style="margin-top:20px">
@@ -369,7 +379,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
         <header><div><h2>Who can do what</h2><p>The system acts on its own only when the fix copies an already approved fact. Everything else waits for a named owner.</p></div></header>
         <div class="tier">
           <div><span class="chip auto">Automatic</span>
-            <ul><li>Log every answer and every claim</li><li>Alert the owner of the fact that was wrong</li><li>Resync Dell's own product feed and structured data from the product record</li><li>Add the question to a daily watchlist until it checks out</li></ul></div>
+            <ul><li>Log every answer and every claim</li><li>Investigate every hallucination and draft the correction (the agent drafts, it never publishes)</li><li>Alert the owner of the fact that was wrong</li><li>Resync Dell's own product feed and structured data from the product record</li><li>Add the question to a daily watchlist until it checks out</li></ul></div>
           <div><span class="chip med">Person approves first</span>
             <ul><li>New or changed customer facing copy</li><li>Correction requests to retailers or review sites</li><li>Anything comparing Dell to a competitor</li><li>Policy, warranty, safety or legal wording (Legal signs off)</li></ul></div>
           <div><span class="chip high">Never allowed</span>
@@ -634,6 +644,36 @@ function severity(c,q,a){
   const s=base+intent+reach;
   return {score:s, level:s>=5?'high':s>=4?'med':'low'};
 }
+/* Investigator agent (browser port of monitor/simplyshop/agent.py). Tools: lookup fact, inspect sources, classify cause, draft correction. */
+function investigate(i){
+  const c=i, r=i.r, steps=[];
+  const truth=fmt[c.attr](c.truth); steps.push(`lookup_fact(${c.product}, ${c.attr}) -> ${truth}`);
+  const n=needle(c).toLowerCase();
+  const ev=r.src.map(id=>{const s=SOURCES[id]; return {id,name:s.name,owner:s.owner,stale:/archive|2022|2023|2024|out of sync/i.test(s.name+' '+s.updated),hit:s.snap.toLowerCase().includes(n)};});
+  steps.push(`inspect_sources('${needle(c)}') -> ${ev.filter(e=>e.hit).length} of ${ev.length} contain it`);
+  const hit=ev.find(e=>e.hit)||null;
+  const cause=!hit?'no cited source contains the wrong value: likely model error or an uncited source'
+    :hit.owner==='Dell'&&hit.stale?"an archived or outdated page on Dell's own site"
+    :hit.owner==='Dell'?"Dell's own feed or page is out of sync with the product record"
+    :hit.stale?'an old third party page (review, forum, spec listing) still being cited':'a current third party listing with a wrong value';
+  steps.push(`classify_cause -> ${cause}`);
+  const said=fmt[c.attr](c.said); let draft;
+  if(c.attr==='exists'||c.attr==='comparison') draft={kind:'publish_lineup_page',to:'Content Lead',subject:'Publish current Dell lineup page naming retired models',body:`AI assistants are recommending ${c.product}, which was ${c.truth}. Publish a lineup page listing retired models with replacements and dates, with structured data so assistants pick it up. Ask ${hit?hit.name:'the citing page'} to mark the review as outdated.`};
+  else if(hit&&hit.owner==='Dell'&&hit.stale) draft={kind:'retire_brand_page',to:'Content Lead',subject:`Retire ${hit.name} and redirect to the current product page`,body:`${c.product}: this archived page still says ${said}; the product record says ${truth}. Retire it and redirect so assistants stop citing it.`};
+  else if(hit&&hit.owner==='Dell') draft={kind:'resync_brand_source',to:'Product Data Lead',subject:`Resync ${hit.name} from the product record`,body:`${c.product}: feed shows ${said}, product record says ${truth}. Resync from the product record.`};
+  else draft={kind:'correction_request',to:(c.attr==='returns'||c.attr==='warranty')?'Legal and Compliance':'Partner Manager',subject:`Correction request: ${c.product} ${c.attr} on ${hit?hit.name:'cited page'}`,body:`Hello, your page currently lists ${c.product} with ${said}. The current, approved value is ${truth} (Dell product record, checked today). Could you update the listing? Source of truth: the Dell product feed. Thank you.`};
+  steps.push(`draft_correction -> ${draft.kind} to ${draft.to}`);
+  const auto=draft.kind==='resync_brand_source'&&(c.attr==='price'||c.attr==='stock');
+  return {cause,hit,draft,steps,confidence:hit?'high':ev.length?'medium':'low',auto,
+    recommendation:auto?'Resync automatically: the fix only copies an already approved fact to Dell\'s own feed.':`Approve and send: ${draft.subject}.`};
+}
+function briefHtml(i){
+  const b=investigate(i);
+  return `<div class="brief"><div class="who">Investigator agent brief <span class="chip ${b.confidence==='high'?'ok':b.confidence==='medium'?'med':'low'}">${b.confidence} confidence</span></div>
+    <dl><dt>AI said</dt><dd>${esc(fmt[i.attr](i.said))}</dd><dt>Approved value</dt><dd>${esc(fmt[i.attr](i.truth))}</dd><dt>Likely cause</dt><dd>${esc(b.cause)}</dd><dt>Evidence</dt><dd>${b.hit?esc(b.hit.name)+' contains the wrong value':'no cited page contains it'}</dd><dt>Recommendation</dt><dd>${esc(b.recommendation)}</dd></dl>
+    <div><span class="eyebrow">Drafted for ${esc(b.draft.to)} to approve</span><div class="draft" style="margin-top:4px"><b>${esc(b.draft.subject)}</b>\n${esc(b.draft.body)}</div></div>
+    <details><summary>What the agent did</summary><div class="steps">${b.steps.map(s=>esc(s)).join('<br>')}</div></details></div>`;
+}
 function routeAction(c,originId){
   const src=originId?SOURCES[originId]:null; const own=src&&src.owner==='Dell';
   if(c.attr==='exists'||c.attr==='comparison') return {auto:false,owner:'Content Lead',text:'Publish a current lineup page that names retired models and their replacements; request correction from '+(src?src.name:'source')};
@@ -852,9 +892,9 @@ function renderQueue(){
   const seen=new Set();
   $('#queue').innerHTML=items.length?items.filter(i=>!seen.has(i.issueId)&&seen.add(i.issueId)).map(i=>{
     const d=state.decisions[i.issueId];
-    return `<div class="qitem"><div class="txt"><b>${esc(i.act.text)}</b><span>${esc(TYPE[i.attr])}: ${esc(i.product)} on ${esc(i.r.a.name)} said ${esc(fmt[i.attr](i.said))} · owner ${esc(i.act.owner)}</span></div>
+    return `<div class="qitem"><div class="txt"><b>${esc(i.act.text)}</b><span>${esc(TYPE[i.attr])}: ${esc(i.product)} on ${esc(i.r.a.name)} said ${esc(fmt[i.attr](i.said))} · owner ${esc(i.act.owner)}</span>${d?'':briefHtml(i)}</div>
       <div class="acts">${d?`<span class="chip ${d==='approved'?'ok':'low'}">${d==='approved'?'Approved':'Rejected'}</span>`:
-      `<button class="btn small good" data-approve="${i.issueId}">Approve</button><button class="btn small bad" data-reject="${i.issueId}">Reject</button>`}</div></div>`;
+      `<button class="btn small good" data-approve="${i.issueId}">Approve draft</button><button class="btn small bad" data-reject="${i.issueId}">Reject</button>`}</div></div>`;
   }).join(''):'<div class="empty">Nothing waiting. New items show up here after each sweep.</div>';
   $('#gaps').innerHTML=GAPS.map(g=>{
     const d=state.gapDecisions[g.id]; const q=QUESTIONS.find(x=>x.id===g.q);
@@ -965,7 +1005,7 @@ const TOUR=[
   {view:'truth',sel:'#hallucKinds',title:'Hallucination Watch',body:'Every wrong claim, grouped the way the case prompt describes them: pricing, availability, features, policies, fabricated products and misleading comparisons.'},
   {view:'truth',sel:'#issueList',title:'Each one, with a cause and an owner',body:'What the AI said, the truth, how bad it is for a shopper, the likely cited source, and who is responsible for the fix.'},
   {view:'sources',sel:'#srcTable',title:'Fix the cause, not the symptom',body:'The pages the assistants cite, ranked by how many hallucinations trace back to them. One stale retailer listing can be wrong in five assistants at once.'},
-  {view:'approvals',sel:'#queue',title:'A person signs off',body:'Anything risky waits here for a named owner. Try it: approve one or two fixes. Safe resyncs of already approved facts happen automatically and show up in the audit log below.'},
+  {view:'approvals',sel:'#queue',title:'The agent did the legwork',body:'For every hallucination, the investigator agent looked up the approved fact, checked each cited source, named the likely cause and drafted the correction. The owner reads the brief and clicks Approve draft. The agent drafts, a person publishes. Try approving one or two.'},
   {view:'overview',sel:'#rerun',title:'Close the loop',body:'Now click Re-run all questions. In demo mode this re-runs the saved sample answers with the approved fixes applied, and the numbers move.'},
   {view:'changes',sel:'#changeTable',title:'Did it help?',body:'Every change Dell made, with inclusion and accuracy before and after. Your re-run just added a live row at the top.'},
   {view:'impact',sel:'#harmTable',title:'What it costs',body:'Returns and support tickets matched to each live hallucination, with what customers said. Accuracy has a dollar value.'},

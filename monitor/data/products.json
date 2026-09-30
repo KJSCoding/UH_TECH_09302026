@@ -79,5 +79,10 @@
       "retired": "2023",
       "note": "Retired line. AIs still recommend it from old reviews."
     }
-  ]
+  ],
+  "brand_owned_sources": [
+    "https://www.dell.com/",
+    "https://feeds.example/dell-retail-feed"
+  ],
+  "_brand_owned_note": "Pages and feeds the brand controls. Errors traced to these can be fixed by resync (automatic when the fix only copies an approved price or stock value)."
 }

@@ -57,6 +57,18 @@ CREATE TABLE IF NOT EXISTS actions (
   status TEXT NOT NULL,               -- 'done', 'pending', 'approved', 'rejected'
   decided_by TEXT, decided_at TEXT
 );
+CREATE TABLE IF NOT EXISTS case_files (
+  id INTEGER PRIMARY KEY,
+  claim_id INTEGER NOT NULL REFERENCES claims(id),
+  driver TEXT NOT NULL,               -- 'rules' or 'llm:<provider>'
+  likely_cause TEXT, likely_source TEXT,
+  confidence TEXT,                    -- high / medium / low
+  recommendation TEXT,
+  draft_kind TEXT, draft_to TEXT, draft_subject TEXT, draft_body TEXT,
+  evidence TEXT,                      -- JSON: every cited source and whether it holds the wrong value
+  steps TEXT,                         -- JSON: the tool calls the agent made, in order
+  requires_approval INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS source_pages (
   url TEXT PRIMARY KEY,
   owner TEXT,                         -- 'brand' or 'third_party'
@@ -95,8 +107,9 @@ def route(claim, brand: str, source_owner: str | None) -> tuple[str, str, str]:
 
 
 def save_sweep(con: sqlite3.Connection, brand: str, mode: str, run_at: str, checked: list, metrics: dict,
-               snapshots: dict[str, str]) -> int:
+               snapshots: dict[str, str], case_files: dict | None = None, brand_owned: list[str] | None = None) -> int:
     """Write one sweep and everything in it. Returns the sweep id."""
+    brand_owned = brand_owned or []
     cur = con.cursor()
     cur.execute(
         "INSERT INTO sweeps(run_at, mode, brand, answers, claims, hallucinations, high_severity, inclusion, accuracy) VALUES (?,?,?,?,?,?,?,?,?)",
@@ -121,8 +134,7 @@ def save_sweep(con: sqlite3.Connection, brand: str, mode: str, run_at: str, chec
             claim_id = cur.lastrowid
             owner_kind = None
             if cl.likely_source:
-                host = urlparse(cl.likely_source).netloc.lower()
-                owner_kind = "brand" if brand.lower() in host else "third_party"
+                owner_kind = "brand" if any(cl.likely_source.startswith(px) for px in brand_owned) else "third_party"
                 cur.execute(
                     "INSERT INTO source_pages(url, owner, snapshot, last_seen, hallucinations) VALUES (?,?,?,?,1) "
                     "ON CONFLICT(url) DO UPDATE SET hallucinations = hallucinations + 1, last_seen = excluded.last_seen, snapshot = COALESCE(excluded.snapshot, snapshot)",
@@ -134,6 +146,13 @@ def save_sweep(con: sqlite3.Connection, brand: str, mode: str, run_at: str, chec
                 "INSERT INTO actions(claim_id, action, mode, owner, status, decided_by, decided_at) VALUES (?,?,?,?,?,?,?)",
                 (claim_id, action, mode_, owner, status, "system" if status == "done" else None, run_at if status == "done" else None),
             )
+            cf = (case_files or {}).get(f"{ans.question_id}_{ans.assistant}|{cl.attribute}")
+            if cf:
+                cur.execute(
+                    "INSERT INTO case_files(claim_id, driver, likely_cause, likely_source, confidence, recommendation, draft_kind, draft_to, draft_subject, draft_body, evidence, steps, requires_approval) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (claim_id, cf.driver, cf.likely_cause, cf.likely_source, cf.confidence, cf.recommendation, cf.draft["kind"], cf.draft["to"],
+                     cf.draft["subject"], cf.draft["body"], json.dumps(cf.evidence), json.dumps(cf.steps), int(cf.requires_approval)),
+                )
     con.commit()
     return sweep_id
 
@@ -159,6 +178,10 @@ QUERIES = {
         SELECT act.id, act.action, act.owner, act.status, c.product, c.hallucination_kind, a.assistant
         FROM actions act JOIN claims c ON c.id = act.claim_id JOIN answers a ON a.id = c.answer_id
         WHERE act.mode = 'needs_approval' AND act.status = 'pending' AND a.sweep_id = (SELECT MAX(id) FROM sweeps)""",
+    "case_files": """
+        SELECT cf.*, c.product, c.hallucination_kind, a.assistant
+        FROM case_files cf JOIN claims c ON c.id = cf.claim_id JOIN answers a ON a.id = c.answer_id
+        WHERE a.sweep_id = (SELECT MAX(id) FROM sweeps) ORDER BY cf.requires_approval DESC, cf.confidence""",
     "kinds": """
         SELECT c.hallucination_kind, COUNT(*) AS n, SUM(c.severity_level = 'high') AS high
         FROM claims c JOIN answers a ON a.id = c.answer_id

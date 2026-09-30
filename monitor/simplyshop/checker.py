@@ -88,6 +88,7 @@ class Checker:
         self.policy = record["policy"]
         self.products = record["products"]
         self.competitors = record.get("competitors", [])
+        self.brand_owned = record.get("brand_owned_sources", [])
         # Products that were retired. If an AI recommends one, that is a hallucination.
         self.retired = {r["name"]: r for r in record.get("retired_products", [])}
         # Pattern for "<Brand> <Something> <number>" so we can spot model names we do not sell.
@@ -246,8 +247,11 @@ class Checker:
             snap = self.snapshots.get(url)
             if snap and needle in snap:
                 return url
-        outside = [u for u in sources if self.brand.lower() not in urlparse(u).netloc.lower() or "archive" in u.lower()]
+        outside = [u for u in sources if not any(u.startswith(px) for px in self.brand_owned) or "archive" in u.lower()]
         return outside[0] if outside else None
+
+    def needle(self, claim: Claim) -> str:
+        return self._needle(claim)
 
     def _needle(self, claim: Claim) -> str:
         a, v = claim.attribute, claim.said

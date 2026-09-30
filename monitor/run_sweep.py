@@ -27,6 +27,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from simplyshop.checker import Checker  # noqa: E402
 from simplyshop.db import connect, save_sweep  # noqa: E402
+from simplyshop.agent import investigate  # noqa: E402
 
 HERE = Path(__file__).parent
 DATA = HERE / "data"
@@ -63,6 +64,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--live", action="store_true", help="ask the real assistants instead of using sample answers")
     ap.add_argument("--delay", type=float, default=1.0, help="seconds between live API calls")
+    ap.add_argument("--agent-llm", action="store_true", help="let an LLM (ANTHROPIC_API_KEY or OPENAI_API_KEY) drive the investigator agent")
     args = ap.parse_args()
 
     record = load("products.json")
@@ -76,6 +78,13 @@ def main() -> None:
     snapshots = load("source_snapshots.json")
     checker = Checker(record, snapshots)
     checked = [checker.check(by_id[a["q"]], a["assistant"], a["text"], a.get("sources")) for a in answers]
+
+    # ---------- investigator agent: one case file per hallucination ----------
+    case_files = {}
+    for c in checked:
+        for cl in c.errors:
+            cf = investigate(cl, c, record, snapshots, checker.needle(cl), use_llm=args.agent_llm)
+            case_files[cf.claim_key] = cf
 
     # ---------- metrics ----------
     shopping = [c for c in checked if c.question_kind == "shopping"]
@@ -106,6 +115,15 @@ def main() -> None:
     for c, cl in errors:
         src = f"  <- {cl.likely_source}" if cl.likely_source else ""
         print(f"    [{cl.severity_level:6s}] {cl.error_type:26s} {cl.product} on {c.assistant}: said {cl.said!r}, truth {cl.truth!r}{src}")
+    if case_files:
+        print()
+        drv = next(iter(case_files.values())).driver
+        print(f"  Investigator agent ({drv}): {len(case_files)} case files, {sum(1 for x in case_files.values() if x.requires_approval)} waiting on a person, {sum(1 for x in case_files.values() if not x.requires_approval)} automatic")
+        top = max(case_files.values(), key=lambda x: (x.requires_approval, x.confidence == 'high'))
+        print(f"    Example: {top.product} {top.attribute}: AI said {top.ai_said!r}, approved {top.approved_value!r}")
+        print(f"      cause: {top.likely_cause}")
+        print(f"      draft to {top.owner}: {top.draft['subject']}")
+        print(f"      recommendation: {top.recommendation}")
     if by_source:
         print()
         print("  Pages causing the most hallucinations:")
@@ -118,7 +136,7 @@ def main() -> None:
     metrics_for_db = {"claims": len(claims), "errors": len(errors), "high": sum(1 for _, cl in errors if cl.severity_level == "high"),
                       "inclusion": inclusion, "accuracy": accuracy}
     con = connect(DB)
-    sweep_id = save_sweep(con, brand, "live" if args.live else "demo", stamp, checked, metrics_for_db, snapshots)
+    sweep_id = save_sweep(con, brand, "live" if args.live else "demo", stamp, checked, metrics_for_db, snapshots, case_files, record.get("brand_owned_sources", []))
     print(f"\nSaved sweep #{sweep_id} to {DB.name} (tables: sweeps, answers, claims, actions, source_pages). Inspect with: python3 query_db.py")
     path = OUT / f"sweep_{stamp}.json"
     path.write_text(json.dumps({

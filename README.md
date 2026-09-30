@@ -19,7 +19,8 @@ flowchart LR
   T[Product record<br/>brand feed, retailer APIs] --> H
   C --> H[Hallucination checker]
   H --> S[Severity + source trace]
-  S --> D[(SQLite / Postgres<br/>sweeps, answers, claims, actions, source_pages)]
+  S --> I[Investigator agent<br/>evidence, cause, drafted fix]
+  I --> D[(SQLite / Postgres<br/>sweeps, answers, claims, actions, source_pages)]
   D --> B[Company dashboard]
   B --> G{Automatic or<br/>needs a person?}
   G -->|auto| F[Fix at the source]
@@ -37,12 +38,13 @@ Shoppers now ask AI assistants "what's the best laptop under $500?" and buy from
 1. Visibility Monitor: asks a library of real shopper questions across AI assistants (the demo models five: ChatGPT, Gemini, Perplexity, Claude and Copilot; live collection is implemented for ChatGPT, Gemini, Claude and Perplexity, and more assistants plug in through the same adapter interface), then scores whether the brand appears, at what position, and next to which competitors.
 2. Hallucination Watch: splits every AI answer into individual claims and checks each one against the company's product record. Catches incorrect pricing, availability, features and policies, plus fabricated products (retired or never existed) and misleading comparisons against them. Each one gets a severity score and is matched to the likely cited source of the incorrect claim.
 3. Source Tracing: matches each wrong fact to the likely cited source of the incorrect claim (a stale retailer listing, an old review, an archived spec sheet) by checking which cited page's snapshot contains the same wrong value. It does not claim to know what trained the model; it finds the most plausible cited origin so the team fixes the cause, not the symptom.
-4. Fix Engine and Approvals: scores each error for customer harm and routes it. Safe fixes that only copy an already approved fact (like resyncing the brand's own product feed) are marked automatic and moved to done; in production that action connects to the brand's product information system. Anything that publishes new copy, contacts an outside company, or touches policy wording waits for a named owner to approve.
-5. Change Impact: logs every change the company makes (page updates, price changes, retailer corrections) and shows whether inclusion and accuracy went up or down after it.
-6. Shopper Insights: from opt in SimplyShop extension users, totals only. Why shoppers picked a competitor, head to head win rates, top questions and budgets.
-7. Business Impact: returns and support tickets matched to each live hallucination (product, reason and date), the estimated weekly cost, money saved as they get fixed, shopper trust, and partner deal conversion.
-8. Alerts: high severity errors go straight to the owner; the rest roll into a weekly digest.
-9. Audit and Governance: every action is logged with who took it and why. Owners, action tiers and scale controls are laid out in the Governance view.
+4. Investigator agent and Approvals: for every hallucination, an agent looks up the approved fact, checks each cited source for the wrong value, names the likely cause, and drafts the correction (a correction request to a retailer, a resync of the brand's own feed, a policy FAQ line, or a lineup page for retired models). It writes a case file with evidence, confidence and a recommendation, and hands it to the accountable owner. The agent drafts, a person publishes: only a resync of an already approved price or stock value on the brand's own feed runs automatically. In demo mode a rule based driver runs the agent's tools; with `--agent-llm` and an Anthropic or OpenAI key, an LLM drives the same tools and writes the draft wording. Both drivers can only draft, never send.
+5. Fix Engine and Approvals: scores each error for customer harm and routes it. Safe fixes that only copy an already approved fact (like resyncing the brand's own product feed) are marked automatic and moved to done; in production that action connects to the brand's product information system. Anything that publishes new copy, contacts an outside company, or touches policy wording waits for a named owner to approve.
+6. Change Impact: logs every change the company makes (page updates, price changes, retailer corrections) and shows whether inclusion and accuracy went up or down after it.
+7. Shopper Insights: from opt in SimplyShop extension users, totals only. Why shoppers picked a competitor, head to head win rates, top questions and budgets.
+8. Business Impact: returns and support tickets matched to each live hallucination (product, reason and date), the estimated weekly cost, money saved as they get fixed, shopper trust, and partner deal conversion.
+9. Alerts: high severity errors go straight to the owner; the rest roll into a weekly digest.
+10. Audit and Governance: every action is logged with who took it and why. Owners, action tiers and scale controls are laid out in the Governance view.
 
 ## How to use the demo
 
@@ -65,10 +67,11 @@ The `monitor/` folder is a small, working version of the backend. It is what run
 
 ```
 cd monitor
-python3 test_checker.py     # 12 tests: claims, hallucinations, tracing, price parsing, database round trip
+python3 test_checker.py     # 15 tests: claims, hallucinations, tracing, price parsing, database, investigator agent
 python3 run_sweep.py        # demo mode, no API keys needed
 python3 query_db.py         # read the results back from the database
 python3 run_sweep.py --live # asks the real assistants (set OPENAI_API_KEY, GOOGLE_API_KEY, ANTHROPIC_API_KEY or PERPLEXITY_API_KEY)
+python3 run_sweep.py --agent-llm  # let an LLM drive the investigator agent (ANTHROPIC_API_KEY or OPENAI_API_KEY)
 ```
 
 Expected test output:
@@ -86,7 +89,10 @@ ok  test_fabricated_and_retired_products
 ok  test_misleading_comparison_against_retired_product
 ok  test_real_products_are_not_flagged_as_fabricated
 ok  test_database_round_trip
-12 tests passed
+ok  test_agent_drafts_correction_and_needs_approval
+ok  test_agent_marks_brand_feed_resync_automatic
+ok  test_agent_never_auto_publishes_policy_or_content
+15 tests passed
 ```
 
 Expected sweep output (demo mode):
@@ -97,14 +103,16 @@ SimplyShop sweep for Dell  (40 answers, 62 claims checked)
   Fact accuracy:                 79%
   Hallucinations live:           13  (5 high severity)
   ...
-Saved sweep #1 to simplyshop.db (tables: sweeps, answers, claims, actions, source_pages)
+  Investigator agent (rules): 13 case files, 12 waiting on a person, 1 automatic
+  ...
+Saved sweep #1 to simplyshop.db (tables: sweeps, answers, claims, actions, case_files, source_pages)
 ```
 
 What one sweep does:
 
 1. Asks each AI assistant every question in `data/questions.json` through its official API (`simplyshop/assistants.py`): OpenAI, Google, Anthropic and Perplexity today. Copilot has no public API, so it appears in the demo data only. Adding an assistant is one adapter function. No scraping of chat sites. Perplexity returns the pages it used, which powers Source Tracing.
 2. Splits each answer into claims and checks them against the brand's product record in `data/products.json` (`simplyshop/checker.py`). Wrong prices, specs, stock, features and policies are flagged, scored for customer harm, and matched to the likely cited source (the cited page whose snapshot contains the same wrong value).
-3. Saves everything to a SQLite database, `monitor/simplyshop.db` (tables: sweeps, answers, claims, actions, source_pages), plus a JSON copy in `output/`. `python3 query_db.py` shows the latest sweep from SQL, `--export` writes the JSON the dashboard reads, and `--sql "..."` runs any query. Any SQLite viewer opens the file. Swapping to Postgres is one connection line.
+3. Saves everything to a SQLite database, `monitor/simplyshop.db` (tables: sweeps, answers, claims, actions, case_files, source_pages), plus a JSON copy in `output/`. `python3 query_db.py` shows the latest sweep from SQL, `--export` writes the JSON the dashboard reads, and `--sql "..."` runs any query. Any SQLite viewer opens the file. Swapping to Postgres is one connection line.
 
 Demo mode uses `data/sample_answers.json`, so judges can run it with zero keys and get the same numbers the dashboard shows (48% inclusion, 79% accuracy, 13 hallucinations, 5 high severity).
 
@@ -122,8 +130,8 @@ Production layout: these scripts run on a scheduler (cron or GitHub Actions) a f
 | Detect incorrect or misleading information (features, pricing, availability, policies, comparisons) | Dashboard: Hallucination Watch tab, grouped by kind in the prompt's own words. Backend: `checker.py` (`HALLUCINATION_KIND`), `claims` table |
 | Hallucinations about products that do not exist | Fabricated product and misleading comparison detection (`_phantoms` in `checker.py`), retired products in `data/products.json` |
 | Measure the impact of those failures (returns, support costs, trust) | Dashboard: Business Impact tab, returns and tickets matched per hallucination, cost model, shopper trust rating |
-| Use AI where it adds clear value | Automated daily question runs across the assistants (four live adapters, Copilot modeled in the demo), claim checking, severity scoring, fix drafting; an LLM extracts claims in production and this checker validates them |
-| Which actions are automatic vs. need a person, and who is accountable | Dashboard: Approvals and Governance tabs. Backend: `route()` in `db.py`, `actions` table (mode, owner, status, decided_by) |
+| Use AI where it adds clear value | The investigator agent (`monitor/simplyshop/agent.py`): per hallucination it gathers evidence, names the cause and drafts the fix for a person to approve. Plus automated question runs across the assistants, claim checking and severity scoring; an LLM extracts claims in production and the deterministic checker validates them |
+| Which actions are automatic vs. need a person, and who is accountable | Dashboard: Approvals tab (every item carries the agent's brief and a drafted correction) and Governance tab. Backend: `route()` in `db.py`, `actions` and `case_files` tables (mode, owner, status, decided_by, requires_approval). The agent can draft but cannot publish, resync or contact anyone |
 | Keep oversight working at scale | Governance tab: severity routing, monthly checker accuracy test, 5% spot checks, one adapter per assistant, per team views |
 | Ethics: no unfair recommendations, privacy | Partners can never buy rank; every partner deal labeled; sharing off by default; Global Privacy Control honored; what the brand can and cannot see (Governance tab, shopper site Privacy Center) |
 | Show improved inclusion, conversion and trust | Overview scorecard and trend chart; approve fixes, re-run, watch the numbers move; extension conversion and trust figures |

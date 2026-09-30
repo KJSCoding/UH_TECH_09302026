@@ -86,6 +86,30 @@ def test_database_round_trip(tmp_path=None):
     assert out["worst_sources"][0]["owner"] == "third_party"
 
 
+def test_agent_drafts_correction_and_needs_approval():
+    from simplyshop.agent import investigate
+    a = checker.check(Q, "chatgpt", "The Dell 14 is $399.", ["https://retailhub.example/dell-14"])
+    cf = investigate(a.errors[0], a, record, {"https://retailhub.example/dell-14": "Dell 14 $399 sold out"}, checker.needle(a.errors[0]))
+    assert cf.likely_source == "https://retailhub.example/dell-14"
+    assert cf.confidence == "high" and cf.requires_approval
+    assert cf.draft["kind"] == "correction_request" and "$449" not in cf.draft["body"] or "449" in cf.draft["body"]
+    assert "lookup_fact" in cf.steps[0] and "draft_correction" in cf.steps[-1]
+
+
+def test_agent_marks_brand_feed_resync_automatic():
+    from simplyshop.agent import investigate
+    a = checker.check(Q, "chatgpt", "The Dell Pro 16 is in stock.", ["https://feeds.example/dell-retail-feed"])
+    cf = investigate(a.errors[0], a, record, {"https://feeds.example/dell-retail-feed": "Dell Pro 16 in stock"}, checker.needle(a.errors[0]))
+    assert cf.draft["kind"] == "resync_brand_source" and not cf.requires_approval
+
+
+def test_agent_never_auto_publishes_policy_or_content():
+    from simplyshop.agent import investigate
+    a = checker.check(Q, "chatgpt", "Dell offers a 14 day return policy.", ["https://dealsforum.example/dell-returns-2023"])
+    cf = investigate(a.errors[0], a, record, {"https://dealsforum.example/dell-returns-2023": "14 day return"}, checker.needle(a.errors[0]))
+    assert cf.requires_approval and cf.owner == "Legal and Compliance"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in globals().items() if k.startswith("test_")]
     for t in tests:
