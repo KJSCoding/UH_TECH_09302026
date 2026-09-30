@@ -123,6 +123,20 @@ mark.errm{background:var(--bad-soft);color:inherit}
 .srcs{display:flex;flex-wrap:wrap;gap:6px}
 
 .queue{display:flex;flex-direction:column;gap:10px}
+.plan{display:flex;flex-direction:column;gap:10px}
+.plan .pitem{border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:6px 14px;align-items:start;background:var(--surface)}
+.plan .pitem .n{width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:600;font-family:'IBM Plex Mono',monospace;font-size:.9rem}
+.plan .pitem .txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.plan .pitem .txt span{color:var(--muted);font-size:.84rem}
+.plan .pitem .pay{text-align:right;display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.plan .pitem .pay .v{font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--good)}
+.fix{grid-column:1/-1;border-top:1px dashed var(--line);padding-top:8px;font-size:.86rem;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}
+.fix b{font-weight:600}
+.fix .pay{color:var(--good);font-family:'IBM Plex Mono',monospace;font-weight:600}
+.playbooks{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.playbooks>div{border:1px solid var(--line);border-radius:8px;padding:12px 14px;font-size:.88rem}
+.playbooks>div h4{margin:6px 0 4px;font-size:.95rem}
+.playbooks>div ul{margin:4px 0 0 16px;padding:0;color:var(--muted);font-size:.84rem}
 .qitem{border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between}
 .qitem .txt{min-width:0;flex:1 1 320px;display:flex;flex-direction:column;gap:3px}
 .qitem .txt span{color:var(--muted);font-size:.84rem}
@@ -239,6 +253,10 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
     <!-- OVERVIEW -->
     <section class="view" id="v-overview">
       <div class="kpis" id="kpis"></div>
+      <div class="panel" style="margin-top:20px">
+        <header><div><h2>This week's plan</h2><p>Not just what is wrong, what to do about it. Fixes grouped by root cause and ordered by what they save per week, so one stale page that feeds three hallucinations is one job, not three. Approve here or in the queue; the agent's draft is already attached.</p></div><span class="eyebrow" id="planTotal"></span></header>
+        <div class="plan" id="plan"></div>
+      </div>
       <div class="grid2" style="margin-top:20px">
         <div class="panel chart">
           <header><h3>Inclusion and accuracy over time</h3><span class="eyebrow">Weekly sweeps</span></header>
@@ -408,6 +426,14 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
           <tr><td>Policies and claims</td><td>Legal and Compliance</td><td>Returns, warranty, safety and comparison wording</td></tr>
           <tr><td>The system itself</td><td>AI Governance Lead</td><td>Checker accuracy, rules, audit log, monthly review</td></tr>
         </table></div>
+      </div>
+      <div class="panel" style="margin-top:20px">
+        <header><div><h3>Playbooks: the standard fix for each kind of risk</h3><p>The recommendation on every card comes from one of these. Owners can edit them; the agent fills in the product, the value and the page.</p></div></header>
+        <div class="playbooks" id="playbooks"></div>
+      </div>
+      <div class="panel" style="margin-top:20px">
+        <header><div><h3>Stop the next one</h3><p>Preventive work that removes whole classes of hallucination instead of fixing them one at a time. Recommended from the patterns in the current sweep.</p></div></header>
+        <div class="queue" id="prevent"></div>
       </div>
       <div class="panel" style="margin-top:20px">
         <header><div><h3>Risk levels, in Dell's terms</h3><p>Severity is not how wrong the fact is, it is what the wrong fact costs the company. Every company sets its own profile: a retailer might put reputation at level 4, a brand selling through partners might lower it. Direction matters: a price quoted too low loses money at checkout, a price quoted too high loses the sale.</p></div><span class="eyebrow">Company profile</span></header>
@@ -737,6 +763,51 @@ function routeAction(c,originId){
   return {auto:false,owner:'Content Lead',text:'Publish clarifying spec table and FAQ; request correction from '+(src?src.name:'source')};
 }
 
+/* ===================== Recommendations ===================== */
+const GAP_VALUE=1200; /* estimated weekly value of one more shopping answer that names Dell (finance can edit) */
+const PLAYBOOK={
+  losing_money:{title:'Losing money',move:'Stop the bleed today',steps:['Fix the source the assistants are reading (resync the feed or send the correction) the same day','Brief support: script for shoppers who quote the wrong price, stock or policy','Watchlist the question daily until the wrong value is gone']},
+  money_at_risk:{title:'Money at risk',move:'Get the right number in front of shoppers',steps:['Correct the cited page, then publish the fact on dell.com with structured data so assistants prefer it','Add the fact to the product FAQ in plain words','Re-run the question after the fix lands']},
+  bad_data:{title:'Bad data',move:'Publish a spec table assistants can quote',steps:['One spec table per product on dell.com with schema.org markup','Ask the third party page to update or mark as outdated','Batch into the weekly digest unless returns are linked']},
+  reputation:{title:'Reputation',move:'Tell the assistants what you no longer sell',steps:['Publish a current lineup page naming retired models, dates and replacements','Redirect old product URLs to the replacement page','Ask review sites to label old reviews as retired']}
+};
+function effortOf(act){ return act.auto?'Automatic, minutes':/Partner Manager/.test(act.owner)?'External, 1 to 2 weeks':/Legal/.test(act.owner)?'Internal, 2 to 3 days (Legal review)':'Internal, 1 to 2 days'; }
+function fixFor(i){
+  const pb=PLAYBOOK[i.sev.category];
+  return {what:i.act.text, owner:i.act.owner, effort:effortOf(i.act), payoff:COST[i.sev.lvl], playbook:pb.move};
+}
+function buildPlan(){
+  const open=openIssues().filter(i=>!i.act.auto&&!state.decisions[i.issueId]);
+  const groups={};
+  for(const i of open){
+    const key=i.origin?'src:'+i.origin:'fact:'+i.product+'|'+i.attr;
+    const g=groups[key]=groups[key]||{key,ids:[],issues:[],payoff:0,owner:i.act.owner,act:i.act,origin:i.origin};
+    g.ids.push(i.issueId); g.issues.push(i); g.payoff+=COST[i.sev.lvl];
+  }
+  const items=Object.values(groups).map(g=>{
+    const src=g.origin?SOURCES[g.origin]:null; const worst=g.issues.reduce((m,i)=>Math.max(m,i.sev.lvl),0);
+    const kinds=[...new Set(g.issues.map(i=>KIND[i.attr]+' ('+i.product+')'))];
+    return {kind:'fix',ids:g.ids,title:g.act.text,owner:g.owner,effort:effortOf(g.act),payoff:g.payoff,worst,
+      why:(src?'Fixing '+src.name+' clears ':'Clears ')+g.issues.length+(g.issues.length>1?' hallucinations: ':' hallucination: ')+kinds.join(', ')+'. Worst is level '+worst+' '+RISK.levels[worst].label.toLowerCase()+'.'};
+  });
+  for(const g of GAPS){ if(state.gapDecisions[g.id]) continue;
+    const q=QUESTIONS.find(x=>x.id===g.q); const missing=state.results.filter(r=>r.q.id===g.q&&!r.rank).length;
+    items.push({kind:'gap',gap:g.id,title:g.title,owner:g.owner,effort:'Internal, 2 to 4 days',payoff:GAP_VALUE*Math.max(1,missing),worst:0,
+      why:'Dell is missing from '+missing+' of 5 answers to "'+q.text+'". Content gap, not a hallucination: nothing to correct, something to publish.'});
+  }
+  return items.sort((x,y)=>y.payoff-x.payoff||y.worst-x.worst);
+}
+function preventiveRecs(){
+  const iss=openIssues(); const recs=[];
+  const stale=Object.entries(SOURCES).filter(([id,s])=>s.owner==='Dell'&&/archive|out of sync|2024/i.test(s.name+' '+s.updated)&&iss.some(i=>i.origin===id));
+  if(stale.length) recs.push({title:'Retire, redirect or resync every dell.com page and feed still feeding wrong values',owner:'Content Lead',why:stale.length+' of Dell\'s own sources are feeding wrong values: '+stale.map(([,s])=>s.name).join('; ')});
+  if(iss.some(i=>i.sev.category==='bad_data')) recs.push({title:'Add schema.org Product markup with full spec tables to every product page',owner:'Product Data Lead',why:'Assistants quote structured data over blog posts. Removes the third party spec pages as the cited source for '+iss.filter(i=>i.sev.category==='bad_data').length+' live bad data hallucinations.'});
+  if(iss.some(i=>i.sev.category==='reputation')) recs.push({title:'Publish and maintain a "current lineup and retired models" page',owner:'Content Lead',why:'Names every retired model with its date and replacement. Fixes '+iss.filter(i=>i.sev.category==='reputation').length+' reputation items at once and stops new ones when the next model retires.'});
+  if(iss.some(i=>i.attr==='stock'||i.attr==='price')) recs.push({title:'Sync the retail product feed hourly instead of weekly, with a diff alert',owner:'Product Data Lead',why:'Every price and stock hallucination this sweep traces to a feed or listing that lagged the product record.'});
+  if(iss.some(i=>i.attr==='returns'||i.attr==='warranty')) recs.push({title:'One canonical policy page (returns, warranty) linked from every product page',owner:'Legal and Compliance',why:'Policy hallucinations cite forum threads and promo pages. One authoritative page with a last updated date gives assistants something better to cite.'});
+  return recs;
+}
+
 /* ===================== State ===================== */
 const state={sweep:1,decisions:{},gapDecisions:{},log:[],prev:null,metrics:null,selected:'q1_chatgpt',results:[],detected:{},resolved:[],pending:[],changes:[],exposure0:null};
 const t0=new Date(); let tick=0;
@@ -892,8 +963,8 @@ function issueCard(i,compact){
     <div class="top"><span class="chip ${i.sev.level}">Level ${i.sev.lvl} ${i.sev.label}</span><span class="chip low">${CATEGORY_LABEL[i.sev.category]}</span><b>${esc(TYPE[i.attr])}</b><span style="color:var(--muted)">${esc(i.product)} on ${esc(i.r.a.name)}</span></div>
     <div class="said">${i.attr==='exists'||i.attr==='comparison'?`AI treated <s>${esc(i.product)}</s> as a current product · truth: <ins>${esc(i.truth)}</ins>`:`AI said <s>${esc(fmt[i.attr](i.said))}</s> · truth is <ins>${esc(fmt[i.attr](i.truth))}</ins>`}
       ${compact?'':`<div class="meta" style="margin-top:6px"><span>Question: ${esc(i.r.q.text)}</span></div><div class="meta" style="margin-top:4px"><span>Business risk: ${esc(i.sev.reason)}${i.sev.adj.length?' · '+esc(i.sev.adj.join('; ')):''}</span></div>`}</div>
-    <div class="meta"><span>Likely cited source: <b style="color:var(--ink);font-weight:500">${origin?esc(origin.name):'Not in cited sources'}</b>${origin?' ('+esc(origin.updated)+')':''}</span>
-      ${compact?'':`<span>Action: ${esc(i.act.text)}</span>`}<span>${status}</span></div>
+    <div class="meta"><span>Likely cited source: <b style="color:var(--ink);font-weight:500">${origin?esc(origin.name):'Not in cited sources'}</b>${origin?' ('+esc(origin.updated)+')':''}</span><span>${status}</span></div>
+    ${compact?'':(()=>{const f=fixFor(i); return `<div class="fix"><span><b>Fix:</b> ${esc(f.what)}</span><span><b>Owner:</b> ${esc(f.owner)}</span><span><b>Effort:</b> ${esc(f.effort)}</span><span><b>Playbook:</b> ${esc(f.playbook)}</span><span class="pay">saves ${money(f.payoff)} / wk</span></div>`;})()}
   </div>`;
 }
 function renderIssues(){
@@ -1015,7 +1086,18 @@ function renderRisk(){
     cats.map(k=>{const l=RISK.category[k]; return `<tr><td><b>${CATEGORY_LABEL[k]}</b></td><td><span class="chip ${RISK.levels[l].cls}">Level ${l} ${RISK.levels[l].label}</span><br><span style="color:var(--muted);font-size:.82rem">${RISK.levels[l].means}</span></td><td style="font-size:.86rem">${ex[k]}</td><td class="c num">${by(k)}</td><td style="font-size:.86rem">${l>=4?'Owner now, by Slack and email':'Weekly digest'}</td></tr>`;}).join('')+
     `<tr><td colspan="5" style="color:var(--muted);font-size:.82rem">Adjustments: level 1 and 2 are reached only by bad data that hurts no one yet (informational question, low reach assistant). ${RISK.returnsEscalateAt}+ linked returns in 30 days moves anything to level 5; any return or ${RISK.ticketsEscalateAt}+ tickets moves it up one. The same profile drives monitor/simplyshop/checker.py through data/products.json.</td></tr>`;
 }
-function renderAll(){renderKpis();renderTrend();renderByAssistant();renderIssues();renderGrid();renderSources();renderQueue();renderAlerts();renderChanges();renderInsights();renderImpact();renderRisk();}
+function renderPlan(){
+  const items=buildPlan(); const total=items.reduce((s,x)=>s+x.payoff,0);
+  $('#planTotal').textContent=items.length?items.length+' jobs · '+money(total)+' / wk if all approved':'Nothing open';
+  $('#plan').innerHTML=items.length?items.slice(0,6).map((x,k)=>`<div class="pitem"><span class="n">${k+1}</span><div class="txt"><b>${esc(x.title)}</b><span>${esc(x.why)}</span><span>Owner ${esc(x.owner)} · ${esc(x.effort)}</span></div>
+    <div class="pay"><span class="v">${money(x.payoff)} / wk</span>${x.kind==='fix'?`<button class="btn small good" data-plan="${x.ids.join(',')}">Approve ${x.ids.length>1?'all '+x.ids.length:'draft'}</button>`:`<button class="btn small good" data-gapok="${x.gap}">Approve</button>`}</div></div>`).join('')+(items.length>6?`<div class="empty">${items.length-6} more in the approvals queue.</div>`:'')
+    :'<div class="empty">Every open item has been approved. Re-run the questions to see the numbers move.</div>';
+  const cats=Object.keys(PLAYBOOK);
+  $('#playbooks').innerHTML=cats.map(k=>{const pb=PLAYBOOK[k], l=RISK.category[k]; return `<div><span class="chip ${RISK.levels[l].cls}">Level ${l} ${RISK.levels[l].label}</span><h4>${pb.title}: ${pb.move}</h4><ul>${pb.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ul></div>`;}).join('');
+  const recs=preventiveRecs();
+  $('#prevent').innerHTML=recs.length?recs.map(r=>`<div class="qitem"><div class="txt"><b>${esc(r.title)}</b><span>${esc(r.why)} · owner ${esc(r.owner)}</span></div><div class="acts"><span class="chip auto">Recommended</span></div></div>`).join(''):'<div class="empty">No patterns to prevent right now.</div>';
+}
+function renderAll(){renderPlan();renderKpis();renderTrend();renderByAssistant();renderIssues();renderGrid();renderSources();renderQueue();renderAlerts();renderChanges();renderInsights();renderImpact();renderRisk();}
 
 /* ===================== Try it ===================== */
 function runTry(){
@@ -1039,6 +1121,7 @@ document.addEventListener('click',e=>{
   if(t.dataset.view) show(t.dataset.view);
   if(t.dataset.go) show(t.dataset.go);
   if(t.dataset.cell){state.selected=t.dataset.cell; renderGrid();}
+  if(t.dataset.plan){ for(const id of t.dataset.plan.split(',')){ if(state.decisions[id]) continue; state.decisions[id]='approved'; const i=openIssues().find(x=>x.issueId===id); addLog(i.act.owner,'Approved from plan: '+i.act.text); state.pending.push(i.act.text+'|'+i.act.owner); } state.metrics=computeMetrics(); renderAll(); }
   if(t.dataset.approve){state.decisions[t.dataset.approve]='approved'; const i=openIssues().find(x=>x.issueId===t.dataset.approve); addLog(i.act.owner,'Approved: '+i.act.text); state.pending.push(i.act.text+'|'+i.act.owner); state.metrics=computeMetrics(); renderAll();}
   if(t.dataset.reject){state.decisions[t.dataset.reject]='rejected'; const i=openIssues().find(x=>x.issueId===t.dataset.reject); addLog(i.act.owner,'Rejected: '+i.act.text); state.metrics=computeMetrics(); renderAll();}
   if(t.dataset.gapok){state.gapDecisions[t.dataset.gapok]='approved'; const g=GAPS.find(x=>x.id===t.dataset.gapok); addLog(g.owner,'Approved and published: '+g.title); state.pending.push(g.title+'|'+g.owner); state.metrics=computeMetrics(); renderAll();}
@@ -1065,6 +1148,7 @@ $('#tryBtn').addEventListener('click',runTry);
 /* ===================== Guided tour ===================== */
 const TOUR=[
   {view:'overview',sel:'#kpis',title:'The scoreboard',body:'How often Dell shows up in AI shopping answers, how many facts are right, and how many hallucinations are live right now. Everything below rolls up here.'},
+  {view:'overview',sel:'#plan',title:'What to do this week',body:'The dashboard does not stop at problems. Fixes are grouped by root cause and ordered by what they save per week, with an owner, the effort, and the agent\'s draft ready to approve. One stale page feeding three hallucinations is one job here.'},
   {view:'overview',sel:'#trend',title:'Is it getting better?',body:'Inclusion and accuracy over time. Every time Dell fixes something and the questions are re-run, a new point lands here.'},
   {view:'visibility',sel:'#grid',title:'Every question, every assistant',body:'Each cell is one AI answer. A number is Dell\'s position in it. Red means the answer mentions Dell but gets a fact wrong. Click any cell to read it with the claims marked.'},
   {view:'truth',sel:'#hallucKinds',title:'Hallucination Watch',body:'Every wrong claim, grouped the way the case prompt describes them: pricing, availability, features, policies, fabricated products and misleading comparisons.'},

@@ -43,8 +43,9 @@ Shoppers now ask AI assistants "what's the best laptop under $500?" and buy from
 6. Change Impact: logs every change the company makes (page updates, price changes, retailer corrections) and shows whether inclusion and accuracy went up or down after it.
 7. Shopper Insights: from opt in SimplyShop extension users, totals only. Why shoppers picked a competitor, head to head win rates, top questions and budgets.
 8. Business Impact: returns and support tickets matched to each live hallucination (product, reason and date), the estimated weekly cost, money saved as they get fixed, shopper trust, and partner deal conversion.
-9. Alerts: level 4 and 5 risks (money involved) go straight to the owner; the rest roll into a weekly digest.
-10. Audit and Governance: every action is logged with who took it and why. Owners, action tiers and scale controls are laid out in the Governance view.
+9. This week's plan: fixes grouped by root cause and ordered by weekly payoff, with owner, effort and the agent's draft, so one stale page feeding three hallucinations is one job. Every hallucination card carries its fix, owner, effort, playbook and weekly savings. Governance holds the playbook per risk category and preventive recommendations (structured data, retired lineup page, hourly feed sync, one canonical policy page) drawn from the sweep's patterns. `run_sweep.py` prints the same plan.
+10. Alerts: level 4 and 5 risks (money involved) go straight to the owner; the rest roll into a weekly digest.
+11. Audit and Governance: every action is logged with who took it and why. Owners, action tiers and scale controls are laid out in the Governance view.
 
 ## How to use the demo
 

@@ -141,6 +141,21 @@ def main() -> None:
         print(f"      cause: {top.likely_cause}")
         print(f"      draft to {top.owner}: {top.draft['subject']}")
         print(f"      recommendation: {top.recommendation}")
+    # ---------- this week's plan: fixes grouped by root cause, ordered by weekly payoff ----------
+    COST = {5: 5200, 4: 3200, 3: 1800, 2: 800, 1: 250}   # estimated weekly cost of one live wrong fact, by risk level
+    plan: dict[str, dict] = {}
+    for c, cl in errors:
+        cf = case_files.get(f"{c.question_id}_{c.assistant}|{cl.attribute}")
+        if cf and not cf.requires_approval:
+            continue  # already fixed automatically
+        key = cl.likely_source or f"{cl.product}|{cl.attribute}"
+        g = plan.setdefault(key, {"n": 0, "payoff": 0, "worst": 0, "owner": cf.owner if cf else "", "draft": cf.draft["subject"] if cf else cl.error_type})
+        g["n"] += 1; g["payoff"] += COST[cl.severity]; g["worst"] = max(g["worst"], cl.severity)
+    if plan:
+        print()
+        print(f"  This week's plan ({len(plan)} jobs, ${sum(g['payoff'] for g in plan.values()):,} / wk if all approved):")
+        for k, (key, g) in enumerate(sorted(plan.items(), key=lambda kv: -kv[1]["payoff"]), 1):
+            print(f"    {k}. ${g['payoff']:>5,}/wk  {g['draft'][:70]}  ({g['n']} hallucination{'s' if g['n'] > 1 else ''}, worst L{g['worst']}, owner {g['owner']})")
     if by_source:
         print()
         print("  Pages causing the most hallucinations:")
