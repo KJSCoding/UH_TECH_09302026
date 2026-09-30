@@ -179,7 +179,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
     <nav class="views" aria-label="Views">
       <button data-view="overview">Overview</button>
       <button data-view="visibility">Visibility</button>
-      <button data-view="truth">Truth Check <span class="count hot" id="nIssues">0</span></button>
+      <button data-view="truth">Hallucination Watch <span class="count hot" id="nIssues">0</span></button>
       <button data-view="sources">Sources</button>
       <button data-view="changes">Change Impact</button>
       <button data-view="insights">Shopper Insights</button>
@@ -224,7 +224,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
           <div class="bars" id="sov"></div>
         </div>
         <div class="panel">
-          <header><h3>Needs attention</h3><button class="btn small" data-go="truth">Open Truth Check</button></header>
+          <header><h3>Needs attention</h3><button class="btn small" data-go="truth">Open Hallucination Watch</button></header>
           <div class="issues" id="topIssues"></div>
         </div>
       </div>
@@ -278,7 +278,9 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
       <div class="grid3" id="impactStats"></div>
       <div class="grid2" style="margin-top:20px">
         <div class="panel">
-          <header><div><h3>What wrong facts cost</h3><p>Estimated weekly cost of each wrong fact that is still live, by severity. Assumptions are listed so finance can adjust them.</p></div></header>
+          <header><div><h3>What each hallucination is costing</h3><p>Returns and support tickets matched to each live hallucination. A return or ticket is matched when the customer's reason mentions the same product and the same wrong fact within 30 days of the AI answer. Sample data.</p></div></header>
+          <div class="tablewrap"><table id="harmTable"></table></div>
+          <header style="margin-top:8px"><h3>Cost model</h3></header>
           <div class="tablewrap"><table id="costTable"></table></div>
         </div>
         <div class="panel">
@@ -303,10 +305,11 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
       <div class="panel" id="cellDetail" style="margin-top:20px"></div>
     </section>
 
-    <!-- TRUTH CHECK -->
+    <!-- HALLUCINATION WATCH -->
     <section class="view" id="v-truth" hidden>
       <div class="panel">
-        <header><div><h2>Wrong facts found in AI answers</h2><p>Every answer is split into claims and checked against the Dell product record: price, specs, stock and policies. Each error is traced to the page the assistant most likely learned it from, scored for customer harm, and routed to an action.</p></div></header>
+        <header><div><h2>Hallucinations found in AI answers</h2><p>A hallucination is anything an assistant states about Dell that is not true: a wrong price, a feature the laptop does not have, stale stock, a wrong policy, a product that was retired or never existed, or a comparison against one. Every answer is split into claims and checked against the Dell product record. Each hallucination is traced to the page the assistant most likely learned it from, scored for customer harm, and routed to an action.</p></div></header>
+        <div class="tablewrap" style="margin-bottom:6px"><table id="hallucKinds"></table></div>
         <div class="issues" id="issueList"></div>
       </div>
       <div class="panel" style="margin-top:20px">
@@ -430,6 +433,8 @@ const PRODUCTS = [
   {id:'cb11',   name:'Dell Chromebook 3110', alias:['Dell Chromebook 3110','Dell Chromebook 3110'], price:249, ram:4, storage:64, battery:11, touch:false, stock:'discontinued'}
 ];
 const POLICY = {returns:30, warranty:1};
+const RETIRED = {'Dell Inspiron 3000':'2023','Dell Chromebook 3110':'2025'};
+const MODEL_RE=/\bDell\s+(?:[A-Z][\w-]*\s+){0,2}\d{2,4}\b/g;
 const COMPETITORS = ['Kestrel Lite 14','Orion Book 15','Vertex Go 13','Kestrel Pro 16','Orion Slim 14'];
 const ASSISTANTS = [
   {id:'chatgpt',name:'ChatGPT',reach:.4},{id:'gemini',name:'Gemini',reach:.2},{id:'perplexity',name:'Perplexity',reach:.1},
@@ -459,6 +464,7 @@ const SOURCES = {
   dealsforum:{name:'DealsForum thread: Dell returns',owner:'Third party',updated:'2023',snap:'14 day return'},
   partner:   {name:'PartnerStore extended warranty promo',owner:'Third party',updated:'2025',snap:'2 year warranty'},
   reddit:    {name:'r/laptops budget thread',owner:'Third party',updated:'Current',snap:''},
+  oldreview: {name:'OldReviews: Dell Inspiron 3000 review (2022)',owner:'Third party',updated:'2022',snap:'Dell Inspiron 3000 review, $349, great budget laptop'},
   kestrel:   {name:'kestrel.com comparison page',owner:'Competitor',updated:'Current',snap:''}
 };
 
@@ -495,7 +501,8 @@ const ANSWERS = [
     'The Dell Pro 16 lasts 12 hours at $899 but is on backorder. The Vertex Go 13 is a cheaper choice.'),
   A('q5','gemini','The Vertex Go 13 and Kestrel Lite 14 both last around 11 hours.',['reddit']),
   A('q5','perplexity','The Vertex Go 13 leads, followed by the Dell 14 with a 10 hour battery at $449.',['own','reddit']),
-  A('q5','claude','Try the Vertex Go 13 or the Orion Slim 14.',['reddit']),
+  A('q5','claude','Try the Vertex Go 13 or the Dell Inspiron 3000, which beats the Vertex on battery when compared side by side.',['oldreview','reddit'],
+    'Try the Vertex Go 13 or the Dell 14, which lasts about 10 hours on a charge.'),
   A('q5','copilot','The Kestrel Lite 14 and Vertex Go 13 are good budget picks for battery.',['reddit']),
   A('q6','chatgpt','Dell offers a 14 day return policy and a 1 year warranty.',['dealsforum'],'Dell offers a 30 day return policy and a 1 year warranty.'),
   A('q6','gemini','Dell has a 30 day return window and a 1 year warranty on laptops.',['own']),
@@ -507,7 +514,8 @@ const ANSWERS = [
   A('q7','gemini','Consider the Kestrel Pro 16, the Orion Book 15, or the Dell Pro 16 ($899) with 16GB RAM and a 1TB SSD.',['own','kestrel']),
   A('q7','perplexity','The Kestrel Pro 16 is the most recommended business laptop under $1000.',['kestrel']),
   A('q7','claude','The Kestrel Pro 16 is a common pick. The Dell Pro 16 ($899) with 16GB RAM is also strong for office work.',['own','kestrel']),
-  A('q7','copilot','Kestrel Pro 16 and Orion Book 15 are the best under $1000.',['kestrel']),
+  A('q7','copilot','For a business laptop under $1000, the Dell Inspiron 3000 is a solid value, and the Kestrel Pro 16 is the premium pick.',['oldreview','kestrel'],
+    'For a business laptop under $1000, the Dell Pro 16 ($899) is a solid value, and the Kestrel Pro 16 is the premium pick.'),
   A('q8','chatgpt','The Vertex Go 13 is lightest, then the Dell 14 at $449 with a 10 hour battery.',['own','reddit']),
   A('q8','gemini','The Dell 14 ($449) is a great lightweight pick with 8GB RAM.',['own']),
   A('q8','perplexity','The Vertex Go 13 and Orion Slim 14 are both under 3 pounds.',['reddit'],
@@ -533,12 +541,28 @@ function findProduct(frag){
 }
 const fmt = {
   price:v=>'$'+v, ram:v=>v+'GB RAM', storage:v=>v>=1024?(v/1024)+'TB SSD':v+'GB SSD', battery:v=>v+' hour battery',
-  touch:v=>v?'has a touchscreen':'no touchscreen', stock:v=>v, returns:v=>v+' day returns', warranty:v=>v+' year warranty'
+  touch:v=>v?'has a touchscreen':'no touchscreen', stock:v=>v, returns:v=>v+' day returns', warranty:v=>v+' year warranty',
+  exists:v=>v, comparison:v=>v
 };
-const TYPE = {price:'Wrong price',ram:'Wrong spec',storage:'Wrong spec',battery:'Wrong spec',touch:'Made up or missing feature',stock:'Stale availability',returns:'Wrong policy',warranty:'Wrong policy'};
+const TYPE = {price:'Wrong price',ram:'Wrong spec',storage:'Wrong spec',battery:'Wrong spec',touch:'Made up or missing feature',stock:'Stale availability',returns:'Wrong policy',warranty:'Wrong policy',exists:'Made up product',comparison:'Made up comparison'};
+/* The case prompt's own words for each kind of hallucination */
+const KIND = {price:'Incorrect pricing',stock:'Incorrect availability',returns:'Incorrect policy',warranty:'Incorrect policy',touch:'Incorrect feature',ram:'Incorrect feature',storage:'Incorrect feature',battery:'Incorrect feature',exists:'Fabricated product',comparison:'Misleading comparison'};
+function phantoms(text,claims){
+  const known=ALIASES.map(x=>x.a); const seen=new Set();
+  for(const m of text.matchAll(MODEL_RE)){
+    const name=m[0]; if(seen.has(name)||known.some(a=>name.startsWith(a)||a.startsWith(name))) continue; seen.add(name);
+    if(RETIRED[name]) claims.push({product:name,attr:'exists',said:'current product',truth:'retired '+RETIRED[name],raw:name,ok:false});
+    else claims.push({product:name,attr:'exists',said:'exists',truth:'not a real model',raw:name,ok:false});
+  }
+  for(const r of Object.keys(RETIRED)){
+    if(text.includes(r) && /\bvs\.?\b|\bversus\b|\bcompared?\b|\bcomparison\b|better than|beats|wins on/i.test(text) && !claims.some(c=>c.attr==='comparison'&&c.product===r))
+      claims.push({product:r,attr:'comparison',said:'compared as current',truth:'retired '+RETIRED[r],raw:r,ok:false});
+  }
+}
 function extractClaims(text){
   const frags = text.split(/(?<=[.!?;])\s+/);
   const claims=[]; let cur=null;
+  phantoms(text,claims);
   for(const f of frags){
     const p=findProduct(f);
     if(p) cur=p; else if(COMPETITORS.some(c=>f.includes(c))) cur=null;
@@ -574,7 +598,7 @@ function needle(c){
   switch(c.attr){
     case 'price':return '$'+c.said; case 'ram':return c.said+'GB RAM'; case 'battery':return c.said+' hour';
     case 'touch':return c.said?'touchscreen':'non-touch'; case 'stock':return c.said;
-    case 'returns':return c.said+' day'; case 'warranty':return c.said+' year'; default:return String(c.said);
+    case 'returns':return c.said+' day'; case 'warranty':return c.said+' year'; case 'exists': case 'comparison': return c.product; default:return String(c.said);
   }
 }
 function traceOrigin(c,srcIds){
@@ -583,15 +607,18 @@ function traceOrigin(c,srcIds){
   return hit||null;
 }
 function rankOf(text){
-  const names=[{a:'Dell',brand:'Dell'},...PRODUCTS.flatMap(p=>p.alias.map(a=>({a,brand:'Dell'}))),...COMPETITORS.map(c=>({a:c,brand:c}))];
+  const names=[...PRODUCTS.filter(p=>p.stock!=='discontinued').flatMap(p=>p.alias.map(a=>({a,brand:'Dell'}))),...COMPETITORS.map(c=>({a:c,brand:c}))];
   const hits=[];
   for(const n of names){const i=text.indexOf(n.a); if(i>=0) hits.push({i,brand:n.brand});}
+  // policy answers mention Dell without a product; count that, but never a retired or made up model
+  if(!hits.some(h=>h.brand==='Dell') && text.includes('Dell') && !MODEL_RE.test(text)) hits.push({i:text.indexOf('Dell'),brand:'Dell'});
+  MODEL_RE.lastIndex=0;
   hits.sort((x,y)=>x.i-y.i);
   const order=[]; for(const h of hits){ if(!order.includes(h.brand)) order.push(h.brand); }
   const r=order.indexOf('Dell'); return {rank:r<0?null:r+1, order};
 }
 function severity(c,q,a){
-  const base={price:3,stock:3,returns:4,warranty:4,touch:3,ram:2,storage:2,battery:2}[c.attr];
+  const base={price:3,stock:3,returns:4,warranty:4,touch:3,ram:2,storage:2,battery:2,exists:4,comparison:3}[c.attr];
   const intent=q.kind==='shopping'?1:0;
   const reach=a.reach>=.3?1:0;
   const s=base+intent+reach;
@@ -599,6 +626,7 @@ function severity(c,q,a){
 }
 function routeAction(c,originId){
   const src=originId?SOURCES[originId]:null; const own=src&&src.owner==='Dell';
+  if(c.attr==='exists'||c.attr==='comparison') return {auto:false,owner:'Content Lead',text:'Publish a current lineup page that names retired models and their replacements; request correction from '+(src?src.name:'source')};
   if(c.attr==='returns'||c.attr==='warranty') return {auto:false,owner:'Legal and Compliance',text:'Approve policy FAQ update and send correction request to '+(src?src.name:'source')};
   if(own && (c.attr==='price'||c.attr==='stock')) return {auto:true,owner:'Product Data Lead',text:'Resync '+src.name+' from the product record'};
   if(own) return {auto:false,owner:'Content Lead',text:'Retire '+src.name+' and redirect to the current product page'};
@@ -659,6 +687,23 @@ function computeMetrics(){
   return {incl,avgRank,acc,claims:claims.length,errors:issues.length,high:issues.filter(i=>i.sev.level==='high').length,waiting,exposure,ttf};
 }
 const COST={high:5200,med:1800,low:450};
+/* Sample: returns and support tickets whose stated reason matches a live hallucination (last 30 days).
+   In production these come from the brand's returns and support systems, matched on product + reason + date. */
+const HARM={
+  'q1_chatgpt|price':{returns:11,tickets:38,note:'"Website price was higher than the AI said"'},
+  'q5_chatgpt|stock':{returns:0,tickets:52,note:'"AI said in stock, order went to backorder"'},
+  'q6_chatgpt|returns':{returns:9,tickets:44,note:'"Thought I had 14 days, tried to return on day 20"'},
+  'q1_copilot|touch':{returns:23,tickets:17,note:'"Bought for the touchscreen, it does not have one"'},
+  'q6_copilot|warranty':{returns:2,tickets:31,note:'"Was told 2 year warranty, claim denied in year 2"'},
+  'q8_claude|stock':{returns:0,tickets:19,note:'"Could not find the Chromebook 3110 anywhere"'},
+  'q7_copilot|exists':{returns:0,tickets:14,note:'"Looked for the Inspiron 3000, it is not sold anymore"'},
+  'q5_claude|exists':{returns:0,tickets:9,note:'"Asked about Inspiron 3000 battery, rep said discontinued"'},
+  'q3_copilot|ram':{returns:6,tickets:12,note:'"Expected 8GB, AI said 4GB, bought a competitor instead"'},
+  'q2_perplexity|battery':{returns:4,tickets:8,note:'"Battery lasts 10 hours not 12"'},
+  'q4_gemini|touch':{returns:0,tickets:15,note:'"AI said no touchscreen, almost did not buy"'},
+  'q3_perplexity|stock':{returns:0,tickets:6,note:'"AI said sold out, it was in stock"'}
+};
+const RETURN_COST=85, TICKET_COST=12;
 const money=n=>'$'+Math.round(n).toLocaleString('en-US');
 /* Sample extension data (opt in shoppers, last 30 days) */
 const EXT={sessions:18400,compared:4260,win:.41,conversion:.068,trust:4.4,ratings:2180,flagged:312,refurb:.22};
@@ -693,7 +738,7 @@ function renderKpis(){
   $('#kpis').innerHTML=`
    <div class="kpi"><span class="eyebrow">AI inclusion</span><span class="v">${pct(m.incl)}</span>${delta(m,p,'incl')}<span class="d">of shopping answers mention Dell</span></div>
    <div class="kpi"><span class="eyebrow">Fact accuracy</span><span class="v">${pct(m.acc)}</span>${delta(m,p,'acc')}<span class="d">${m.claims} claims checked</span></div>
-   <div class="kpi"><span class="eyebrow">Wrong facts live</span><span class="v">${m.errors}</span>${delta(m,p,'errors','down',false)}<span class="d">${m.high} high severity</span></div>
+   <div class="kpi"><span class="eyebrow">Hallucinations live</span><span class="v">${m.errors}</span>${delta(m,p,'errors','down',false)}<span class="d">${m.high} high severity · ${state.resolved.length} caught and fixed</span></div>
    <div class="kpi"><span class="eyebrow">Avg position</span><span class="v">#${m.avgRank.toFixed(1)}</span>${delta(m,p,'avgRank','down',false)}<span class="d">when Dell is mentioned</span></div>
    <div class="kpi"><span class="eyebrow">Time to fix</span><span class="v">${m.ttf===null?'None yet':m.ttf+' hr'}</span><span class="d">${state.resolved.length} wrong facts fixed so far</span><span class="d">median, detection to gone</span></div>
    <div class="kpi"><span class="eyebrow">Win rate vs. competitors</span><span class="v">${pct(EXT.win)}</span><span class="d">of ${EXT.compared.toLocaleString('en-US')} shoppers who compared</span><span class="src">Extension sample</span></div>
@@ -741,7 +786,7 @@ function issueCard(i,compact){
   const origin=i.origin?SOURCES[i.origin]:null;
   return `<div class="issue ${i.sev.level}">
     <div class="top"><span class="chip ${i.sev.level}">${i.sev.level==='high'?'High':i.sev.level==='med'?'Medium':'Low'} · ${i.sev.score}</span><b>${esc(TYPE[i.attr])}</b><span style="color:var(--muted)">${esc(i.product)} on ${esc(i.r.a.name)}</span></div>
-    <div class="said">AI said <s>${esc(fmt[i.attr](i.said))}</s> · truth is <ins>${esc(fmt[i.attr](i.truth))}</ins>
+    <div class="said">${i.attr==='exists'||i.attr==='comparison'?`AI treated <s>${esc(i.product)}</s> as a current product · truth: <ins>${esc(i.truth)}</ins>`:`AI said <s>${esc(fmt[i.attr](i.said))}</s> · truth is <ins>${esc(fmt[i.attr](i.truth))}</ins>`}
       ${compact?'':`<div class="meta" style="margin-top:6px"><span>Question: ${esc(i.r.q.text)}</span></div>`}</div>
     <div class="meta"><span>Likely origin: <b style="color:var(--ink);font-weight:500">${origin?esc(origin.name):'Not in cited sources'}</b>${origin?' ('+esc(origin.updated)+')':''}</span>
       ${compact?'':`<span>Action: ${esc(i.act.text)}</span>`}<span>${status}</span></div>
@@ -749,6 +794,9 @@ function issueCard(i,compact){
 }
 function renderIssues(){
   const list=openIssues();
+  const kinds={}; for(const i of list){ const k=KIND[i.attr]; kinds[k]=kinds[k]||{n:0,high:0}; kinds[k].n++; if(i.sev.level==='high') kinds[k].high++; }
+  $('#hallucKinds').innerHTML='<tr><th>Kind of hallucination (case prompt wording)</th><th class="c">Live now</th><th class="c">High severity</th></tr>'+
+    ['Incorrect pricing','Incorrect availability','Incorrect feature','Incorrect policy','Fabricated product','Misleading comparison'].map(k=>`<tr><td>${k}</td><td class="c num">${kinds[k]?kinds[k].n:0}</td><td class="c num">${kinds[k]?kinds[k].high:0}</td></tr>`).join('');
   $('#topIssues').innerHTML=list.length?list.slice(0,3).map(i=>issueCard(i,true)).join(''):'<div class="empty">No wrong facts in the latest sweep.</div>';
   $('#issueList').innerHTML=list.length?list.map(i=>issueCard(i,false)).join(''):'<div class="empty">Every checked claim matches the product record.</div>';
   $('#record').innerHTML='<tr><th>Product</th><th>Price</th><th>RAM</th><th>Storage</th><th>Battery</th><th>Touchscreen</th><th>Stock</th></tr>'+
@@ -834,6 +882,12 @@ function renderInsights(){
 }
 function renderImpact(){
   const m=state.metrics; const saved=Math.max(0,state.exposure0-m.exposure);
+  const live=openIssues();
+  let R=0,T=0;
+  const rows=live.map(i=>{const h=HARM[i.issueId]||{returns:0,tickets:0,note:''}; R+=h.returns; T+=h.tickets; return {i,h,cost:h.returns*RETURN_COST+h.tickets*TICKET_COST};}).sort((x,y)=>y.cost-x.cost);
+  $('#harmTable').innerHTML='<tr><th>Hallucination</th><th>Assistant</th><th class="c">Returns</th><th class="c">Tickets</th><th class="c">Cost (30 days)</th><th>What customers said</th></tr>'+
+    rows.map(({i,h,cost})=>`<tr><td><span class="chip ${i.sev.level}">${i.sev.level==='high'?'High':i.sev.level==='med'?'Med':'Low'}</span> ${esc(KIND[i.attr])}: ${esc(i.product)}</td><td>${esc(i.r.a.name)}</td><td class="c num">${h.returns}</td><td class="c num">${h.tickets}</td><td class="c num">${money(cost)}</td><td style="color:var(--muted);font-size:.84rem">${esc(h.note)}</td></tr>`).join('')+
+    `<tr><td><b>Total, live hallucinations</b></td><td></td><td class="c num"><b>${R}</b></td><td class="c num"><b>${T}</b></td><td class="c num"><b>${money(R*RETURN_COST+T*TICKET_COST)}</b></td><td style="color:var(--muted);font-size:.84rem">Returns at $${RETURN_COST} each (shipping, restock, refund handling), tickets at $${TICKET_COST} each. Matched on product, reason and date.</td></tr>`;
   $('#impactStats').innerHTML=stat('Weekly cost of wrong facts live',money(m.exposure),m.errors+' wrong facts still in AI answers')+
     stat('Saved since first sweep',money(saved)+' / wk','from wrong facts that stopped appearing')+
     stat('Checks shoppers flagged as wrong info',EXT.flagged.toLocaleString('en-US'),'last 30 days, from the extension');

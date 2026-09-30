@@ -56,6 +56,36 @@ def test_structured_price_parser():
     assert got["price"] == 449.0 and got["availability"] == "in stock" and got["name"] == "Dell 14"
 
 
+def test_fabricated_and_retired_products():
+    out = claims("Go with the Dell Latitude 5400, or the Dell Inspiron 3000 at $349.")
+    kinds = {(c[0], c[1]) for c in out}
+    assert ("exists", "exists") in kinds            # model not in the record
+    assert ("exists", "current product") in kinds   # retired model presented as current
+
+
+def test_misleading_comparison_against_retired_product():
+    out = claims("Dell 14 vs Dell Inspiron 3000: the Inspiron wins on price.")
+    assert any(a == "comparison" for a, _, _ in out)
+
+
+def test_real_products_are_not_flagged_as_fabricated():
+    assert all(a != "exists" for a, _, _ in claims("The Dell 14 and Dell Pro 16 are both good."))
+
+
+def test_database_round_trip(tmp_path=None):
+    import tempfile
+    from simplyshop.db import connect, save_sweep, export_for_dashboard
+    a = checker.check(Q, "chatgpt", "The Dell 14 is $399, and Dell offers a 14 day return policy.", ["https://retailhub.example/dell-14"])
+    with tempfile.TemporaryDirectory() as d:
+        con = connect(f"{d}/t.db")
+        save_sweep(con, "Dell", "demo", "now", [a], {"claims": 2, "errors": 2, "high": 2, "inclusion": 1.0, "accuracy": 0.0}, {})
+        out = export_for_dashboard(con)
+    assert out["latest_metrics"]["hallucinations"] == 2
+    assert len(out["open_hallucinations"]) == 2
+    assert any(r["owner"] == "Legal and Compliance" for r in out["approval_queue"])
+    assert out["worst_sources"][0]["owner"] == "third_party"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in globals().items() if k.startswith("test_")]
     for t in tests:

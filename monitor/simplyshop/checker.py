@@ -17,6 +17,7 @@ would extract claims from messier answers and this checker would validate them.
 from __future__ import annotations
 
 import re
+from urllib.parse import urlparse
 from dataclasses import dataclass, field, asdict
 from typing import Any
 
@@ -24,11 +25,20 @@ from typing import Any
 BASE_SEVERITY = {
     "price": 3, "stock": 3, "returns": 4, "warranty": 4,
     "touchscreen": 3, "ram_gb": 2, "storage_gb": 2, "battery_hours": 2,
+    "exists": 4, "comparison": 3,
 }
 ERROR_TYPE = {
     "price": "Wrong price", "ram_gb": "Wrong spec", "storage_gb": "Wrong spec",
     "battery_hours": "Wrong spec", "touchscreen": "Made up or missing feature",
     "stock": "Stale availability", "returns": "Wrong policy", "warranty": "Wrong policy",
+    "exists": "Made up product", "comparison": "Made up comparison",
+}
+# Hallucination kinds, in the case prompt's words. Every error maps to one.
+HALLUCINATION_KIND = {
+    "price": "incorrect pricing", "stock": "incorrect availability", "returns": "incorrect policy",
+    "warranty": "incorrect policy", "touchscreen": "incorrect feature", "ram_gb": "incorrect feature",
+    "storage_gb": "incorrect feature", "battery_hours": "incorrect feature",
+    "exists": "fabricated product", "comparison": "misleading comparison",
 }
 # Rough share of AI shopping traffic per assistant. Used only for severity weighting.
 ASSISTANT_REACH = {"chatgpt": 0.4, "gemini": 0.2, "claude": 0.15, "copilot": 0.15, "perplexity": 0.1}
@@ -46,6 +56,7 @@ class Claim:
     severity: int | None = None
     severity_level: str | None = None
     likely_source: str | None = None
+    hallucination_kind: str | None = None
 
 
 @dataclass
@@ -77,6 +88,10 @@ class Checker:
         self.policy = record["policy"]
         self.products = record["products"]
         self.competitors = record.get("competitors", [])
+        # Products that were retired. If an AI recommends one, that is a hallucination.
+        self.retired = {r["name"]: r for r in record.get("retired_products", [])}
+        # Pattern for "<Brand> <Something> <number>" so we can spot model names we do not sell.
+        self._model_re = re.compile(rf"\b{re.escape(self.brand)}\s+(?:[A-Z][\w-]*\s+){{0,2}}\d{{2,4}}\b")
         # Longest alias first so "Dell Pro 16" is not read as "Dell 16".
         self.aliases = sorted(
             [(alias, p) for p in self.products for alias in p["aliases"]],
@@ -95,6 +110,7 @@ class Checker:
         for claim in self._extract_claims(text):
             if not claim.ok:
                 claim.error_type = ERROR_TYPE[claim.attribute]
+                claim.hallucination_kind = HALLUCINATION_KIND[claim.attribute]
                 claim.severity, claim.severity_level = self._severity(claim, question["kind"], assistant)
                 claim.likely_source = self._trace(claim, sources)
             answer.claims.append(claim)
@@ -113,6 +129,7 @@ class Checker:
     def _extract_claims(self, text: str) -> list[Claim]:
         claims: list[Claim] = []
         current: dict | None = None
+        self._phantoms(text, claims)
         for sentence in re.split(r"(?<=[.!?;])\s+", text):
             product = self._find_product(sentence)
             if product:
@@ -134,6 +151,28 @@ class Checker:
             if current or self.brand.lower() in sentence.lower():
                 self._policy_claims(sentence, claims)
         return claims
+
+    def _phantoms(self, text: str, out: list[Claim]) -> None:
+        """Catch product names that look like ours but are not in the record (fabricated or retired),
+        and comparisons against a retired product presented as current."""
+        known = {a for a, _ in self.aliases}
+        seen = set()
+        for m in self._model_re.finditer(text):
+            name = m.group(0)
+            if name in seen or any(name.startswith(a) or a.startswith(name) for a in known):
+                continue
+            seen.add(name)
+            if name in self.retired:
+                r = self.retired[name]
+                out.append(Claim(name, "exists", "current product", f"retired {r['retired']}", name, False))
+            else:
+                out.append(Claim(name, "exists", "exists", "not a real model", name, False))
+        # A comparison that pits us against a product that no longer exists is misleading.
+        for retired_name in self.retired:
+            if retired_name in text and re.search(r"\bvs\.?\b|\bversus\b|\bcompared?\b|\bcomparison\b|better than|beats|wins on", text, re.I):
+                if not any(c.attribute == "comparison" and c.product == retired_name for c in out):
+                    out.append(Claim(retired_name, "comparison", "compared as current",
+                                     f"retired {self.retired[retired_name]['retired']}", retired_name, False))
 
     def _product_claims(self, s: str, p: dict, out: list[Claim]) -> None:
         def add(attr: str, said: Any, raw: str) -> None:
@@ -173,8 +212,15 @@ class Checker:
             out.append(Claim(f"{self.brand} policy", "warranty", said, self.policy["warranty_years"], m.group(0), said == self.policy["warranty_years"]))
 
     def _rank(self, text: str) -> tuple[int | None, list[str]]:
-        names = [(self.brand, self.brand)] + [(a, self.brand) for a, _ in self.aliases] + [(c, c) for c in self.competitors]
+        """Position of the brand among the products named. Only real, current products count:
+        an AI recommending a retired or made up model is not real inclusion."""
+        real = [(a, self.brand) for a, p in self.aliases if p.get("stock") != "discontinued"]
+        names = real + [(c, c) for c in self.competitors]
         hits = sorted((text.find(n), b) for n, b in names if text.find(n) >= 0)
+        # Policy answers mention the brand without a product; count that as a mention too.
+        if not any(b == self.brand for _, b in hits) and self.brand in text and not self._model_re.search(text):
+            hits.append((text.find(self.brand), self.brand))
+            hits.sort()
         order: list[str] = []
         for _, b in hits:
             if b not in order:
@@ -200,7 +246,7 @@ class Checker:
             snap = self.snapshots.get(url)
             if snap and needle in snap:
                 return url
-        outside = [u for u in sources if self.brand.lower() not in u.lower() or "archive" in u.lower()]
+        outside = [u for u in sources if self.brand.lower() not in urlparse(u).netloc.lower() or "archive" in u.lower()]
         return outside[0] if outside else None
 
     def _needle(self, claim: Claim) -> str:
@@ -209,4 +255,5 @@ class Checker:
             "price": f"${v}", "ram_gb": f"{v}gb ram", "battery_hours": f"{v} hour",
             "touchscreen": "touchscreen" if v else "non-touch", "stock": str(v),
             "returns": f"{v} day", "warranty": f"{v} year",
+            "exists": claim.product, "comparison": claim.product,
         }.get(a, str(v)).lower()

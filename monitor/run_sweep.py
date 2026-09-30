@@ -8,8 +8,8 @@ SimplyShop monitor: one "sweep".
 A sweep does four things:
 1. Ask each AI assistant every question in data/questions.json (or load the saved sample answers).
 2. Check every answer against data/products.json with the claim checker.
-3. Print a short report: inclusion rate, accuracy, the wrong facts, and the pages causing them.
-4. Save everything to output/sweep_<timestamp>.json so the dashboard (or a database) can load it.
+3. Print a short report: inclusion rate, accuracy, the hallucinations, and the pages causing them.
+4. Save everything to the SQLite database (simplyshop.db) and a JSON copy in output/.
 
 In production this runs on a schedule (cron or GitHub Actions) a few times a day.
 """
@@ -26,10 +26,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from simplyshop.checker import Checker  # noqa: E402
+from simplyshop.db import connect, save_sweep  # noqa: E402
 
 HERE = Path(__file__).parent
 DATA = HERE / "data"
 OUT = HERE / "output"
+DB = HERE / "simplyshop.db"
 
 
 def load(name: str):
@@ -71,7 +73,8 @@ def main() -> None:
     if not args.live:
         print("Demo mode: using data/sample_answers.json (run with --live to query the real assistants)")
 
-    checker = Checker(record, load("source_snapshots.json"))
+    snapshots = load("source_snapshots.json")
+    checker = Checker(record, snapshots)
     checked = [checker.check(by_id[a["q"]], a["assistant"], a["text"], a.get("sources")) for a in answers]
 
     # ---------- metrics ----------
@@ -93,25 +96,30 @@ def main() -> None:
     print(f"SimplyShop sweep for {brand}  ({len(checked)} answers, {len(claims)} claims checked)")
     print(f"  Inclusion in shopping answers: {inclusion:.0%}")
     print(f"  Fact accuracy:                 {accuracy:.0%}")
-    print(f"  Wrong facts live:              {len(errors)}  ({sum(1 for _, cl in errors if cl.severity_level == 'high')} high severity)")
+    print(f"  Hallucinations live:           {len(errors)}  ({sum(1 for _, cl in errors if cl.severity_level == 'high')} high severity)")
     print()
     print("  Inclusion by assistant:")
     for name, v in by_assistant.items():
         print(f"    {name:11s} {v:.0%}")
     print()
-    print("  Wrong facts (most severe first):")
+    print("  Hallucinations (most severe first):")
     for c, cl in errors:
         src = f"  <- {cl.likely_source}" if cl.likely_source else ""
         print(f"    [{cl.severity_level:6s}] {cl.error_type:26s} {cl.product} on {c.assistant}: said {cl.said!r}, truth {cl.truth!r}{src}")
     if by_source:
         print()
-        print("  Pages causing the most wrong facts:")
+        print("  Pages causing the most hallucinations:")
         for src, n in by_source.most_common(5):
             print(f"    {n}x  {src}")
 
     # ---------- save ----------
     OUT.mkdir(exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    metrics_for_db = {"claims": len(claims), "errors": len(errors), "high": sum(1 for _, cl in errors if cl.severity_level == "high"),
+                      "inclusion": inclusion, "accuracy": accuracy}
+    con = connect(DB)
+    sweep_id = save_sweep(con, brand, "live" if args.live else "demo", stamp, checked, metrics_for_db, snapshots)
+    print(f"\nSaved sweep #{sweep_id} to {DB.name} (tables: sweeps, answers, claims, actions, source_pages). Inspect with: python3 query_db.py")
     path = OUT / f"sweep_{stamp}.json"
     path.write_text(json.dumps({
         "brand": brand, "mode": "live" if args.live else "demo", "run_at": stamp,
@@ -119,7 +127,7 @@ def main() -> None:
                     "inclusion_by_assistant": by_assistant},
         "answers": [c.to_dict() for c in checked],
     }, indent=2))
-    print(f"\nSaved {path.relative_to(HERE)}")
+    print(f"JSON copy: {path.relative_to(HERE)}")
 
 
 if __name__ == "__main__":
