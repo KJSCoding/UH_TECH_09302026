@@ -202,7 +202,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
         <button class="btn primary" id="rerun">Re-run all questions</button>
       </div>
     </div>
-    <div class="notice">Demo mode: the Dell prices, specs and stock shown here are sample values, not live Dell data. Competitor names are placeholders, the assistant answers are simulated sample runs, and shopper insights, conversion and trust figures are sample SimplyShop extension data. The claim checker, source tracing, severity scoring and approval rules run live in your browser. Approve fixes, then re-run the questions to see the numbers move.</div>
+    <div class="notice">Demo mode: the Dell prices, specs and stock shown here are sample values, not live Dell data. "Re-run all questions" re-runs saved sample answers, not a live network sweep (the live collector is in the repo under monitor/). Competitor names are placeholders, the assistant answers are simulated sample runs, and shopper insights, conversion and trust figures are sample SimplyShop extension data. The claim checker, source tracing, severity scoring and approval rules run live in your browser. Approve fixes, then re-run the questions to see the numbers move.</div>
 
     <!-- OVERVIEW -->
     <section class="view" id="v-overview">
@@ -308,7 +308,7 @@ textarea{width:100%;min-height:130px;font:inherit;background:var(--surface);colo
     <!-- HALLUCINATION WATCH -->
     <section class="view" id="v-truth" hidden>
       <div class="panel">
-        <header><div><h2>Hallucinations found in AI answers</h2><p>A hallucination is anything an assistant states about Dell that is not true: a wrong price, a feature the laptop does not have, stale stock, a wrong policy, a product that was retired or never existed, or a comparison against one. Every answer is split into claims and checked against the Dell product record. Each hallucination is traced to the page the assistant most likely learned it from, scored for customer harm, and routed to an action.</p></div></header>
+        <header><div><h2>Hallucinations found in AI answers</h2><p>A hallucination is anything an assistant states about Dell that is not true: a wrong price, a feature the laptop does not have, stale stock, a wrong policy, a product that was retired or never existed, or a comparison against one. Every answer is split into claims and checked against the Dell product record. Each hallucination is matched to the likely cited source of the wrong claim, scored for customer harm, and routed to an action.</p></div></header>
         <div class="tablewrap" style="margin-bottom:6px"><table id="hallucKinds"></table></div>
         <div class="issues" id="issueList"></div>
       </div>
@@ -788,7 +788,7 @@ function issueCard(i,compact){
     <div class="top"><span class="chip ${i.sev.level}">${i.sev.level==='high'?'High':i.sev.level==='med'?'Medium':'Low'} · ${i.sev.score}</span><b>${esc(TYPE[i.attr])}</b><span style="color:var(--muted)">${esc(i.product)} on ${esc(i.r.a.name)}</span></div>
     <div class="said">${i.attr==='exists'||i.attr==='comparison'?`AI treated <s>${esc(i.product)}</s> as a current product · truth: <ins>${esc(i.truth)}</ins>`:`AI said <s>${esc(fmt[i.attr](i.said))}</s> · truth is <ins>${esc(fmt[i.attr](i.truth))}</ins>`}
       ${compact?'':`<div class="meta" style="margin-top:6px"><span>Question: ${esc(i.r.q.text)}</span></div>`}</div>
-    <div class="meta"><span>Likely origin: <b style="color:var(--ink);font-weight:500">${origin?esc(origin.name):'Not in cited sources'}</b>${origin?' ('+esc(origin.updated)+')':''}</span>
+    <div class="meta"><span>Likely cited source: <b style="color:var(--ink);font-weight:500">${origin?esc(origin.name):'Not in cited sources'}</b>${origin?' ('+esc(origin.updated)+')':''}</span>
       ${compact?'':`<span>Action: ${esc(i.act.text)}</span>`}<span>${status}</span></div>
   </div>`;
 }

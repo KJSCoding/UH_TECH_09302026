@@ -8,6 +8,9 @@ Set the API keys as environment variables to use live mode:
   OPENAI_API_KEY, GOOGLE_API_KEY, ANTHROPIC_API_KEY, PERPLEXITY_API_KEY
 Missing keys are skipped with a note, so you can run with just one.
 
+Copilot: Microsoft does not offer a public consumer Copilot API, so Copilot appears in the demo
+sample data only. Adding any assistant is one function with this same shape, registered in ASSISTANTS.
+
 Requests use only the standard library (urllib) so there is nothing to install.
 """
 

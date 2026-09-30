@@ -8,7 +8,7 @@ Company dashboard on its own: https://kjscoding.github.io/UH_TECH_09302026/
 
 Start here if you are evaluating the technical implementation: the `monitor/` folder. It is the backend: it asks the AI assistants, checks every answer for hallucinations, traces the source, scores the harm, routes fixes through governance, and writes it all to a database. The dashboard sits on top.
 
-What is real and what is simulated: demo mode uses reproducible sample AI responses so judges do not need API keys. The claim checker, hallucination detection, source tracing, severity scoring, governance routing, database, and every metric run for real on that sample, in both the backend and the dashboard. Add one API key and `--live` to collect real answers. Dell prices, competitor names, and the shopper insights, returns, tickets and trust figures are sample data.
+What is real and what is simulated: demo mode uses reproducible sample AI responses so judges do not need API keys. The claim checker, hallucination detection, source tracing, severity scoring, governance routing, database, and every metric run for real on that sample, in both the backend and the dashboard. Add one API key and `--live` to collect real answers. The hosted dashboard demonstrates the full workflow on its own embedded copy of the sample data and a JavaScript port of the checker; the Python backend produces the same data model and the two are kept in sync by hand (same numbers: 48% inclusion, 79% accuracy, 13 hallucinations). Wiring the dashboard to read the database directly is the next step. Dell prices, competitor names, and the shopper insights, returns, tickets and trust figures are sample data.
 
 ## Architecture
 
@@ -34,10 +34,10 @@ The loop is the product: AI answer, wrong claim, truth comparison, likely source
 
 Shoppers now ask AI assistants "what's the best laptop under $500?" and buy from the short answer they get back. If the assistant leaves a brand out, or gets its price, specs, stock or return policy wrong, the brand loses the sale or eats the return. SimplyShop gives a company a control room for that new front door.
 
-1. Visibility Monitor: asks a library of real shopper questions across ChatGPT, Gemini, Perplexity, Claude and Copilot (live with an API key, sample answers in demo mode), then scores whether the brand appears, at what position, and next to which competitors.
-2. Hallucination Watch: splits every AI answer into individual claims and checks each one against the company's product record. Catches incorrect pricing, availability, features and policies, plus fabricated products (retired or never existed) and misleading comparisons against them. Each one gets a severity score and is traced to the page the AI most likely learned it from.
-3. Source Tracing: matches each wrong fact to the cited page it most likely came from (a stale retailer listing, an old review, an archived spec sheet) so the team fixes the cause, not the symptom.
-4. Fix Engine and Approvals: scores each error for customer harm and routes it. Safe fixes that only copy an approved fact (like resyncing the brand's own product feed) run automatically. Anything that publishes new copy, contacts an outside company, or touches policy wording waits for a named owner to approve.
+1. Visibility Monitor: asks a library of real shopper questions across AI assistants (the demo models five: ChatGPT, Gemini, Perplexity, Claude and Copilot; live collection is implemented for ChatGPT, Gemini, Claude and Perplexity, and more assistants plug in through the same adapter interface), then scores whether the brand appears, at what position, and next to which competitors.
+2. Hallucination Watch: splits every AI answer into individual claims and checks each one against the company's product record. Catches incorrect pricing, availability, features and policies, plus fabricated products (retired or never existed) and misleading comparisons against them. Each one gets a severity score and is matched to the likely cited source of the incorrect claim.
+3. Source Tracing: matches each wrong fact to the likely cited source of the incorrect claim (a stale retailer listing, an old review, an archived spec sheet) by checking which cited page's snapshot contains the same wrong value. It does not claim to know what trained the model; it finds the most plausible cited origin so the team fixes the cause, not the symptom.
+4. Fix Engine and Approvals: scores each error for customer harm and routes it. Safe fixes that only copy an already approved fact (like resyncing the brand's own product feed) are marked automatic and moved to done; in production that action connects to the brand's product information system. Anything that publishes new copy, contacts an outside company, or touches policy wording waits for a named owner to approve.
 5. Change Impact: logs every change the company makes (page updates, price changes, retailer corrections) and shows whether inclusion and accuracy went up or down after it.
 6. Shopper Insights: from opt in SimplyShop extension users, totals only. Why shoppers picked a competitor, head to head win rates, top questions and budgets.
 7. Business Impact: returns and support tickets matched to each live hallucination (product, reason and date), the estimated weekly cost, money saved as they get fixed, shopper trust, and partner deal conversion.
@@ -55,7 +55,7 @@ Suggested path (about 3 minutes):
 3. Hallucination Watch: every hallucination by kind, with severity, likely origin, and the routed action.
 4. Sources: which pages are causing the most wrong facts.
 5. Approvals: approve or reject fixes and content gaps as the accountable owner.
-6. Click "Re-run all questions" at the top. Approved fixes take effect and the metrics and trend chart update.
+6. Click "Re-run all questions" at the top. In demo mode this re-runs the saved sample answers (no network call), with approved fixes swapped in, so the metrics and trend chart update. The live collector is `monitor/run_sweep.py --live`.
 7. Try it: paste any AI answer about a Dell product and the checker grades it claim by claim.
 
 
@@ -102,8 +102,8 @@ Saved sweep #1 to simplyshop.db (tables: sweeps, answers, claims, actions, sourc
 
 What one sweep does:
 
-1. Asks every AI assistant each question in `data/questions.json` through its official API (`simplyshop/assistants.py`). No scraping of chat sites. Perplexity returns the pages it used, which powers Source Tracing.
-2. Splits each answer into claims and checks them against the brand's product record in `data/products.json` (`simplyshop/checker.py`). Wrong prices, specs, stock, features and policies are flagged, scored for customer harm, and traced to the cited page whose snapshot contains the wrong value.
+1. Asks each AI assistant every question in `data/questions.json` through its official API (`simplyshop/assistants.py`): OpenAI, Google, Anthropic and Perplexity today. Copilot has no public API, so it appears in the demo data only. Adding an assistant is one adapter function. No scraping of chat sites. Perplexity returns the pages it used, which powers Source Tracing.
+2. Splits each answer into claims and checks them against the brand's product record in `data/products.json` (`simplyshop/checker.py`). Wrong prices, specs, stock, features and policies are flagged, scored for customer harm, and matched to the likely cited source (the cited page whose snapshot contains the same wrong value).
 3. Saves everything to a SQLite database, `monitor/simplyshop.db` (tables: sweeps, answers, claims, actions, source_pages), plus a JSON copy in `output/`. `python3 query_db.py` shows the latest sweep from SQL, `--export` writes the JSON the dashboard reads, and `--sql "..."` runs any query. Any SQLite viewer opens the file. Swapping to Postgres is one connection line.
 
 Demo mode uses `data/sample_answers.json`, so judges can run it with zero keys and get the same numbers the dashboard shows (48% inclusion, 79% accuracy, 13 hallucinations, 5 high severity).
@@ -122,7 +122,7 @@ Production layout: these scripts run on a scheduler (cron or GitHub Actions) a f
 | Detect incorrect or misleading information (features, pricing, availability, policies, comparisons) | Dashboard: Hallucination Watch tab, grouped by kind in the prompt's own words. Backend: `checker.py` (`HALLUCINATION_KIND`), `claims` table |
 | Hallucinations about products that do not exist | Fabricated product and misleading comparison detection (`_phantoms` in `checker.py`), retired products in `data/products.json` |
 | Measure the impact of those failures (returns, support costs, trust) | Dashboard: Business Impact tab, returns and tickets matched per hallucination, cost model, shopper trust rating |
-| Use AI where it adds clear value | Automated daily question runs across five assistants, claim checking, severity scoring, fix drafting; an LLM extracts claims in production and this checker validates them |
+| Use AI where it adds clear value | Automated daily question runs across the assistants (four live adapters, Copilot modeled in the demo), claim checking, severity scoring, fix drafting; an LLM extracts claims in production and this checker validates them |
 | Which actions are automatic vs. need a person, and who is accountable | Dashboard: Approvals and Governance tabs. Backend: `route()` in `db.py`, `actions` table (mode, owner, status, decided_by) |
 | Keep oversight working at scale | Governance tab: severity routing, monthly checker accuracy test, 5% spot checks, one adapter per assistant, per team views |
 | Ethics: no unfair recommendations, privacy | Partners can never buy rank; every partner deal labeled; sharing off by default; Global Privacy Control honored; what the brand can and cannot see (Governance tab, shopper site Privacy Center) |

@@ -12,7 +12,7 @@ For option 3 we do not parse messy HTML. Most retailer product pages include a b
 structured data (schema.org "Product" JSON, the same thing Google reads) with the price,
 currency and availability. This function pulls that block out.
 
-Rules we follow when reading pages: respect robots.txt, one request every few seconds,
+Rules we follow when reading pages: respect robots.txt (and skip the site if it cannot be read), one request every few seconds,
 never behind a login, never personal data, and use the API when one exists.
 
     python3 -c "from simplyshop.prices import fetch_price; print(fetch_price('https://www.example.com/product'))"
@@ -39,7 +39,8 @@ def allowed_by_robots(url: str) -> bool:
         rp.read()
         return rp.can_fetch(USER_AGENT, url)
     except Exception:
-        return True  # no robots.txt reachable: proceed politely
+        # Fail closed: if we cannot read the site's rules, we do not read the site.
+        return False
 
 
 def fetch_price(url: str, timeout: int = 20) -> dict | None:
